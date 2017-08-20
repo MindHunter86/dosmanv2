@@ -1,8 +1,10 @@
 package main
 
 import "os"
+import "time"
 
 import "mailru/rooster22/config"
+import "mailru/rooster22/telegram"
 
 import "github.com/rs/zerolog"
 
@@ -23,6 +25,13 @@ func main() {
 		return
 	}
 
+	if _,e = new(telegram.TelegramBot).ConfigureAndConnect(app.cfg.Telegram.Token); e != nil {
+		app.log.Error().Err(e).Msg("Telegram component error!")
+		return
+	}
+
 	app.log.Debug().Msg("Application has been started and initialized!")
 	app.log.Debug().Str(app.cfg.Mysql.Host, app.cfg.Telegram.Token).Msg("test")
+
+	time.Sleep(60 * time.Second)
 }

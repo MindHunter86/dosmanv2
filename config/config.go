@@ -8,7 +8,7 @@ import "gopkg.in/yaml.v2"
 
 type AppConfig struct {
 	Base struct {
-		Debug boolg
+		Debug bool
 		Log_level string
 		Http struct {
 			Listen string
