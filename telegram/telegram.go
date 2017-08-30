@@ -1,25 +1,30 @@
 package telegram
 
-import "errors"
+import "mailru/rooster22/config"
 
 // import "github.com/rs/zerolog"
+import "golang.org/x/net/context"
 import "github.com/go-telegram-bot-api/telegram-bot-api"
 
-
-var (
-	ErrInvalidToken = errors.New("Invalid telegram token!")
-)
 
 type TelegramBot struct {
 	*tgbotapi.BotAPI
 	updates tgbotapi.UpdatesChannel
+
+	ctxPipeDone <-chan struct{}
 }
-func (self *TelegramBot) ConfigureAndConnect(token string) (*TelegramBot, error) {
-	if len(token) < 45 { return nil,ErrInvalidToken }
-
+func (self *TelegramBot) ConfigureAndConnect(ctx context.Context) (*TelegramBot, error) {
 	var e error
-	if self.BotAPI, e = tgbotapi.NewBotAPI(token); e != nil { return nil,e }
+	var appConfig *config.AppConfig
 
+	// import config from context:
+	self.ctxPipeDone = ctx.Done()
+	appConfig = ctx.Value(config.CTX_APP_CONFIG).(*config.AppConfig)
+
+	// initialize new telegram bot connention:
+	if self.BotAPI, e = tgbotapi.NewBotAPI(appConfig.Telegram.Token); e != nil { return nil,e }
+
+	// telegram bot event loop configuration:
 	updatesConfig := tgbotapi.NewUpdate(0)
 	updatesConfig.Timeout = 60
 

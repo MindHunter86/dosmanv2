@@ -6,6 +6,12 @@ import "io/ioutil"
 import "gopkg.in/yaml.v2"
 
 
+const (
+	CTX_APP_CONFIG = uint8(iota)
+	CTX_APP_LOGGER
+)
+
+
 type AppConfig struct {
 	Base struct {
 		Debug bool
