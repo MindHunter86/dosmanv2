@@ -1,0 +1,16 @@
+#-- main application configuration:
+base:
+    debug: true
+    log_level: "debug"
+    http:
+        listen: "ip:port"
+
+#-- 3-rd party services:
+telegram:
+  token: "token:token"
+
+mysql:
+    host: "host:poprt"
+    username: "username"
+    password: "password"
+    database: "database"
