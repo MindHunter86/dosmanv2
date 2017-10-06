@@ -32,9 +32,7 @@ func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (
 	go self.startCloseEventLoop()
 	return self,self.openConnection()
 }
-func (self *MysqlModule) Start() error { return nil }
-func (self *MysqlModule) Stop() error { return nil }
-func (self *MysqlModule) Unconfigure() {}
+func (self *MysqlModule) Bootstrap() error { return nil }
 
 func (self *MysqlModule) startCloseEventLoop() {
 	<-self.mods.DonePipe
