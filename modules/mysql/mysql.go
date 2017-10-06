@@ -43,7 +43,9 @@ func (self *MysqlModule) Unconfigure() {}
 
 func (self *MysqlModule) startCloseEventLoop() {
 	<-self.mods.DonePipe
+	self.mods.WaitGroup.Done()
 	self.log.Debug().Msg("mysql - donePipe closed!")
+
 	if e := self.closeConnection(); e != nil {
 		self.log.Error().Err(e).Msg("Exception!")
 	}

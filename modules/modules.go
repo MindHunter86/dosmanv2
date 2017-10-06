@@ -1,8 +1,14 @@
 package modules
 
+import "sync"
+
 type Modules struct {
+	// BaseModule address "storage":
 	Hub map[string]*BaseModule
+
+	// Modules global control:
 	DonePipe chan struct{}
+	WaitGroup sync.WaitGroup
 }
 
 type BaseModule struct {

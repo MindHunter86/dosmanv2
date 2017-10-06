@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"mailru/rooster22/modules"
-	tgrm "mailru/rooster22/modules/telegram"
+	//tgrm "mailru/rooster22/modules/telegram"
 	config "mailru/rooster22/system/config"
 	"mailru/rooster22/modules/mysql"
 
@@ -37,7 +37,8 @@ func (self *System) Configure() (*System, error) {
 
 	// load modules:
 	for { // error "catcher":
-		if e = self.preloadModule(new(tgrm.TelegramBot).Configure(self.mods,nil)); e != nil { break }
+		// temporary disabled module:
+		//if e = self.preloadModule(new(tgrm.TelegramBot).Configure(self.mods,nil)); e != nil { break }
 		if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, self.log, self.cfg)); e != nil { break }
 		break
 	}
@@ -73,6 +74,7 @@ func (self *System) preloadModule(modPointer modules.Module, modError error) err
 	if modError != nil { return modError }
 
 	// append new module to map:
+	self.mods.WaitGroup.Add(1)
 	var modName reflect.Type = reflect.TypeOf(modPointer)
 
 	self.mods.Hub[modName.Elem().Name()] = &modules.BaseModule{
@@ -84,5 +86,7 @@ func (self *System) preloadModule(modPointer modules.Module, modError error) err
 }
 func (self *System) destroy() error {
 	close(self.mods.DonePipe)
+	self.mods.WaitGroup.Wait()
+
 	return nil
 }
