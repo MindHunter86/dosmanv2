@@ -1,8 +1,8 @@
 package modules
 
 type Modules struct {
-	Ids map[string]uint8
-	Hub map[uint8]*BaseModule
+	Hub map[string]*BaseModule
+	DonePipe chan struct{}
 }
 
 type BaseModule struct {
@@ -10,7 +10,6 @@ type BaseModule struct {
 
 	ID uint8
 	Status uint32
-	Error_ch chan error
 }
 
 type Module interface {

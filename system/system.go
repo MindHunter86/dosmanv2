@@ -10,6 +10,7 @@ import (
 	"mailru/rooster22/modules"
 	tgrm "mailru/rooster22/modules/telegram"
 	config "mailru/rooster22/system/config"
+	"mailru/rooster22/modules/mysql"
 
 	"github.com/rs/zerolog"
 )
@@ -31,16 +32,17 @@ func (self *System) Configure() (*System, error) {
 
 	// 
 	self.mods = new(modules.Modules)
-	self.mods.Ids = make(map[string]uint8)
-	self.mods.Hub = make(map[uint8]*modules.BaseModule)
+	self.mods.Hub = make(map[string]*modules.BaseModule)
+	self.mods.DonePipe = make(chan struct{})
 
 	// load modules:
 	for { // error "catcher":
 		if e = self.preloadModule(new(tgrm.TelegramBot).Configure(self.mods,nil)); e != nil { break }
+		if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, self.log, self.cfg)); e != nil { break }
 		break
 	}
 	if e != nil {
-		self.log.Debug()
+		self.log.Error().Err(e).Msg("Preload module configuration hase been failed!")
 		return nil,e
 	}
 
@@ -71,18 +73,16 @@ func (self *System) preloadModule(modPointer modules.Module, modError error) err
 	if modError != nil { return modError }
 
 	// append new module to map:
-	var modID uint8 = uint8(len(self.mods.Hub))
-	self.mods.Hub[modID] = &modules.BaseModule{
-		ID: modID,
+	var modName reflect.Type = reflect.TypeOf(modPointer)
+
+	self.mods.Hub[modName.Elem().Name()] = &modules.BaseModule{
+		ID: uint8(len(self.mods.Hub)),
 		Module: modPointer,
 	}
-
-	// append new module id to map:
-	modName := reflect.TypeOf(modPointer)
-	self.mods.Ids[modName.Elem().Name()] = modID
 
 	return nil
 }
 func (self *System) destroy() error {
+	close(self.mods.DonePipe)
 	return nil
 }

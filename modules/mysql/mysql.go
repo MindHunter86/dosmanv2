@@ -1,62 +1,76 @@
 package mysql
 
 import (
+	"reflect"
 	"time"
 	"database/sql"
 
-	"mailru/rooster22/config"
+	"mailru/rooster22/modules"
+	config "mailru/rooster22/system/config"
 
 	"github.com/rs/zerolog"
-	"golang.org/x/net/context"
 	_ "github.com/go-sql-driver/mysql"
 	mysql "github.com/go-sql-driver/mysql"
 )
 
 
-type SqlConnector struct {
-	dbConn *sql.DB
 
-	appConfig *config.AppConfig
-	appLogger *zerolog.Logger
+type MysqlModule struct {
+	dbSession *sql.DB
 
-	ctxPipeDone <-chan struct{}
+	log *zerolog.Logger
+	cfg *config.SysConfig
+
+	modName string
+	mods *modules.Modules
 }
-func (self *SqlConnector) ConfigureAndConnect(ctx context.Context) error {
-	self.ctxPipeDone = ctx.Done()
-	self.appConfig = ctx.Value(config.CTX_APP_CONFIG).(*config.AppConfig)
-	appLogger = ctx.Value(config.CTX_APP_LOGGER).(*zerolog.Logger)
+
+func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
+	// Get and set module name (struct name):
+	self.modName = reflect.TypeOf(self).Elem().Name()
+	self.mods = mods
+
+	// Get global logger and configuration:
+	self.log = args[0].(*zerolog.Logger)
+	self.cfg = args[1].(*config.SysConfig)
 
 	go self.startCloseEventLoop()
-	return self.openConnection()
+	return self,self.openConnection()
 }
+func (self *MysqlModule) Start() error { return nil }
+func (self *MysqlModule) Stop() error { return nil }
+func (self *MysqlModule) Unconfigure() {}
 
-func (self *SqlConnector) startCloseEventLoop() {
-	<-self.ctxPipeDone
+func (self *MysqlModule) startCloseEventLoop() {
+	<-self.mods.DonePipe
+	self.log.Debug().Msg("mysql - donePipe closed!")
 	if e := self.closeConnection(); e != nil {
-		self.appLogger.Error().Err(e).Msg("")
+		self.log.Error().Err(e).Msg("Exception!")
 	}
 }
-func (self *SqlConnector) openConnection() error {
-	if self.dbConn,e = sql.Open("mysql", self.configureConnetcion().FormatDSN()); e != nil { return e}
-	return self.dbConn.Ping()
+func (self *MysqlModule) openConnection() error {
+	var e error
+	if self.dbSession,e = sql.Open("mysql", self.configureConnetcion().FormatDSN()); e != nil { return e}
+	return self.dbSession.Ping()
 }
-func (self *SqlConnector) closeConnection() error {
-	return self.dbConn.Close()
+func (self *MysqlModule) closeConnection() error {
+	return self.dbSession.Close()
 }
-func (self *SqlConnector) configureConnetcion() *mysql.Config {
+
+func (self *MysqlModule) configureConnetcion() *mysql.Config {
 	var cnf *mysql.Config = new(mysql.Config)
 
 	// https://github.com/go-sql-driver/mysql - docs
-	cnf.Net = "tcp4"
-	cnf.Addr = self.appConfig.Mysql.Host
-	cnf.User = self.appConfig.Mysql.Username
-	cnf.Passwd = self.appConfig.Mysql.Password
-	cnf.DBName = self.appConfig.Mysql.Database
+	cnf.Net = "tcp"
+	cnf.Addr = self.cfg.Mysql.Host
+	cnf.User = self.cfg.Mysql.Username
+	cnf.Passwd = self.cfg.Mysql.Password
+	cnf.DBName = self.cfg.Mysql.Database
 	cnf.Collation = "utf8_general_ci"
 	cnf.MaxAllowedPacket = 0
 	cnf.TLSConfig = "false"
 	if tloc, e := time.LoadLocation("Europe/Moscow"); e != nil {	// "Europe%2FMoscow"
-		self.slogger.W(log.LLEV_DBG, "Time location parsing error! | " + e.Error())
+		//		self.log.W(log.LLEV_DBG, "Time location parsing error! | " + e.Error())
 		cnf.Loc = time.UTC
 	} else { cnf.Loc = tloc }
 
