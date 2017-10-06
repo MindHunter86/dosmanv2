@@ -6,7 +6,6 @@ import (
 	"database/sql"
 
 	"mailru/rooster22/modules"
-	config "mailru/rooster22/system/config"
 
 	"github.com/rs/zerolog"
 	_ "github.com/go-sql-driver/mysql"
@@ -17,22 +16,18 @@ import (
 
 type MysqlModule struct {
 	dbSession *sql.DB
-
-	log *zerolog.Logger
-	cfg *config.SysConfig
+	log zerolog.Logger
 
 	modName string
 	mods *modules.Modules
 }
 
 func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
-	// Get and set module name (struct name):
-	self.modName = reflect.TypeOf(self).Elem().Name()
 	self.mods = mods
+	self.modName = reflect.TypeOf(self).Elem().Name()
 
-	// Get global logger and configuration:
-	self.log = args[0].(*zerolog.Logger)
-	self.cfg = args[1].(*config.SysConfig)
+	// Set module name as prefix for logger:
+	self.log = self.mods.Logger.With().Str("module", self.modName).Logger()
 
 	go self.startCloseEventLoop()
 	return self,self.openConnection()
@@ -44,7 +39,7 @@ func (self *MysqlModule) Unconfigure() {}
 func (self *MysqlModule) startCloseEventLoop() {
 	<-self.mods.DonePipe
 	self.mods.WaitGroup.Done()
-	self.log.Debug().Msg("mysql - donePipe closed!")
+	self.log.Debug().Msg("donePipe closed!")
 
 	if e := self.closeConnection(); e != nil {
 		self.log.Error().Err(e).Msg("Exception!")
@@ -64,14 +59,15 @@ func (self *MysqlModule) configureConnetcion() *mysql.Config {
 
 	// https://github.com/go-sql-driver/mysql - docs
 	cnf.Net = "tcp"
-	cnf.Addr = self.cfg.Mysql.Host
-	cnf.User = self.cfg.Mysql.Username
-	cnf.Passwd = self.cfg.Mysql.Password
-	cnf.DBName = self.cfg.Mysql.Database
+	cnf.Addr = self.mods.Config.Mysql.Host
+	cnf.User = self.mods.Config.Mysql.Username
+	cnf.Passwd = self.mods.Config.Mysql.Password
+	cnf.DBName = self.mods.Config.Mysql.Database
 	cnf.Collation = "utf8_general_ci"
 	cnf.MaxAllowedPacket = 0
 	cnf.TLSConfig = "false"
 	if tloc, e := time.LoadLocation("Europe/Moscow"); e != nil {	// "Europe%2FMoscow"
+		self.log.Warn().Err(e).Msg("Could not get location in configuration files parsing!")
 		//		self.log.W(log.LLEV_DBG, "Time location parsing error! | " + e.Error())
 		cnf.Loc = time.UTC
 	} else { cnf.Loc = tloc }

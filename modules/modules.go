@@ -1,10 +1,18 @@
 package modules
 
-import "sync"
+import (
+	"sync"
+	config "mailru/rooster22/system/config"
+	"github.com/rs/zerolog"
+)
 
 type Modules struct {
 	// BaseModule address "storage":
 	Hub map[string]*BaseModule
+
+	// Modules global resources:
+	Logger *zerolog.Logger
+	Config *config.SysConfig
 
 	// Modules global control:
 	DonePipe chan struct{}
@@ -20,8 +28,8 @@ type BaseModule struct {
 
 type Module interface {
 	Configure(*Modules, ...interface{}) (Module, error)
-	//	Unconfigure()
+	Unconfigure()
 
-	//Start() error
-	//Stop() error
+	Start() error
+	Stop() error
 }

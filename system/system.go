@@ -9,6 +9,7 @@ import (
 
 	"mailru/rooster22/modules"
 	//tgrm "mailru/rooster22/modules/telegram"
+	"mailru/rooster22/modules/http"
 	config "mailru/rooster22/system/config"
 	"mailru/rooster22/modules/mysql"
 
@@ -39,7 +40,8 @@ func (self *System) Configure() (*System, error) {
 	for { // error "catcher":
 		// temporary disabled module:
 		//if e = self.preloadModule(new(tgrm.TelegramBot).Configure(self.mods,nil)); e != nil { break }
-		if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, self.log, self.cfg)); e != nil { break }
+		if e = self.preloadModule(new(http.HttpModule).Configure(self.mods, nil)); e != nil { break }
+		if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, nil)); e != nil { break }
 		break
 	}
 	if e != nil {
