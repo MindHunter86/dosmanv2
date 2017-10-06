@@ -34,7 +34,10 @@ func (self *System) Configure() (*System, error) {
 	// 
 	self.mods = new(modules.Modules)
 	self.mods.Hub = make(map[string]*modules.BaseModule)
+
+	self.mods.Logger = self.log
 	self.mods.DonePipe = make(chan struct{})
+	if self.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
 
 	// load modules:
 	for { // error "catcher":

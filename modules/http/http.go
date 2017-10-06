@@ -24,8 +24,15 @@ func (self *HttpModule) Configure(mods *modules.Modules, args ...interface{}) (m
 	// Set module name as prefix for logger:
 	self.log = self.mods.Logger.With().Str("module", self.modName).Logger()
 
+	go self.startCloseEventLoop()
 	return self,nil
 }
 func (self *HttpModule) Start() error { return nil }
 func (self *HttpModule) Stop() error { return nil }
 func (self *HttpModule) Unconfigure() {}
+
+func (self *HttpModule) startCloseEventLoop() {
+	<-self.mods.DonePipe
+	self.mods.WaitGroup.Done()
+	self.log.Debug().Msg("donePipe closed!")
+}
