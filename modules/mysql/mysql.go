@@ -13,7 +13,7 @@ import (
 )
 
 
-
+// Module structs:
 type MysqlModule struct {
 	dbSession *sql.DB
 	log zerolog.Logger
@@ -22,6 +22,8 @@ type MysqlModule struct {
 	mods *modules.Modules
 }
 
+
+// Module API:
 func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
 	self.mods = mods
 	self.modName = reflect.TypeOf(self).Elem().Name()
@@ -32,8 +34,11 @@ func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (
 	go self.startCloseEventLoop()
 	return self,self.openConnection()
 }
+
 func (self *MysqlModule) Bootstrap() error { return nil }
 
+
+// Module internal functions:
 func (self *MysqlModule) startCloseEventLoop() {
 	<-self.mods.DonePipe
 	self.mods.WaitGroup.Done()
@@ -43,11 +48,13 @@ func (self *MysqlModule) startCloseEventLoop() {
 		self.log.Error().Err(e).Msg("Exception!")
 	}
 }
+
 func (self *MysqlModule) openConnection() error {
 	var e error
 	if self.dbSession,e = sql.Open("mysql", self.configureConnetcion().FormatDSN()); e != nil { return e}
 	return self.dbSession.Ping()
 }
+
 func (self *MysqlModule) closeConnection() error {
 	return self.dbSession.Close()
 }
