@@ -28,8 +28,5 @@ type BaseModule struct {
 
 type Module interface {
 	Configure(*Modules, ...interface{}) (Module, error)
-	Unconfigure()
-
-	Start() error
-	Stop() error
+	Bootstrap() error
 }
