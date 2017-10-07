@@ -44,7 +44,4 @@ func (self *HttpModule) parentEventHandler () {
 
 	// close httpServer socket for fasthttp fatal error:
 	self.http.socket.Close()
-
-	// close goroutine and exit:
-	self.mods.WaitGroup.Done()
 }

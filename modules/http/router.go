@@ -25,4 +25,6 @@ func (self *httpRouter) configure() (*httpRouter) {
 func (self *httpRouter) index(ctx *fasthttp.RequestCtx) {
 	// ./router.go:26: cannot use ([]byte)("Hello world!") (type []byte) as type *bufio.Writer in argument to ctx.Response.Write
 	// ctx.Response.Write([]byte("Hello world!"))
+	ctx.Response.SetBody([]byte("HelloWorld"))
+	ctx.Response.SetStatusCode(200)
 }

@@ -6,6 +6,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	StatusReady = uint32(iota) // call when module has been configured (pre start state)
+	StatusRunning // call when module bootstraped successfully
+	StatusStopping // call when we want stop module
+	StatusFailed // call, when module has failed on* configure or bootstrap ("failed on" or "failed in"?)
+)
+
 type Modules struct {
 	// BaseModule address "storage":
 	Hub map[string]*BaseModule
