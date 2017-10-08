@@ -35,40 +35,36 @@ func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (
 }
 
 func (self *MysqlModule) Bootstrap() error {
-	// XXX: BAD CODE!
-	self.startCloseEventLoop()
-	return nil
-}
-
-
-// Module internal functions:
-func (self *MysqlModule) startCloseEventLoop() {
 	var mysqlChecker *time.Ticker = time.NewTicker(time.Second)
 
-BEGIN:
+LOOP:
 	for {
 		select {
 		case <-self.mods.DonePipe:
-			break BEGIN
+			break LOOP
 		case <-mysqlChecker.C:
-			if _,e := self.dbSession.Query("status"); e != nil {
-// 			if e := self.dbSession.Ping(); e != nil {
-				mysqlChecker.Stop()
-
-				if err := self.closeConnection(); err != nil {
-					self.log.Warn().Err(err).Msg("MysqlChecker error! Could not close the current connection!")
-				}
+			if _, e := self.dbSession.Exec("DO 1;"); e != nil {
+				// XXX: garbage
+				self.mods.ErrorPipe <-&modules.ModuleError{ ModName: self.modName, E: e }
+				// self.log.Warn().Err(err).Msg("MysqlChecker error! Could not close the current connection!")
 
 				self.log.Error().Err(e).Msg("MysqlChecker: mysql ping() has been failed!")
-				break BEGIN
+				// break LOOP - no break! Module interface will call close(), if we send error over ErrorPipe.
 			}
 		}
 	}
 
+	// stop timer:
+	mysqlChecker.Stop()
+
+	// close mysql connection:
 	if e := self.closeConnection(); e != nil {
 		self.log.Error().Err(e).Msg("Exception!")
 	}
+
+	return nil
 }
+
 
 func (self *MysqlModule) openConnection() error {
 	var e error

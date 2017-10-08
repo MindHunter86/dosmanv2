@@ -23,16 +23,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	// launch modules:
-	if e = sys.Launch(); e != nil {
-		log.Error().Err(e).Msg("Error in application launch handler!")
-		os.Exit(1)
-	} else { log.Debug().Msg("All modules has been launched!") }
-
-	// launch system event loop:
-	log.Debug().Msg("The Application has been initialized! Starting event loop...")
-	if e = sys.LaunchEvLoops(); e != nil {
-		log.Error().Err(e).Msg("Error in application event loop launcher!")
+	// system services start:
+	log.Debug().Msg("Starting system bootstrapping...")
+	if e = sys.Bootstrap(); e != nil {
+		log.Error().Err(e).Msg("CRITICAL ERROR!")
 		os.Exit(1)
 	}
 

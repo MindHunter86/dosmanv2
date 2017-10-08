@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	StatusReady = uint32(iota) // call when module has been configured (pre start state)
+	StatusReady = uint8(iota) // call when module has been configured (pre start state)
 	StatusRunning // call when module bootstraped successfully
 	StatusStopping // call when we want stop module
 	StatusFailed // call, when module has failed on* configure or bootstrap ("failed on" or "failed in"?)
@@ -23,17 +23,36 @@ type Modules struct {
 
 	// Modules global control:
 	DonePipe chan struct{}
+	ErrorPipe chan *ModuleError
 	WaitGroup sync.WaitGroup
-}
-
-type BaseModule struct {
-	Module
-
-	ID uint8
-	Status uint32
 }
 
 type Module interface {
 	Configure(*Modules, ...interface{}) (Module, error)
 	Bootstrap() error
+}
+
+type BaseModule struct {
+	Module
+	status uint8
+}
+
+type ModuleError struct {
+	ModName string
+	ErrLevel string
+
+	E error
+}
+
+
+// ModuleError API:
+func (self *ModuleError) Error() error { return self.E }
+
+
+// BaseModules API:
+func (self *BaseModule) GetModuleStatus() uint8 {
+	return self.status
+}
+func (self *BaseModule) SetModuleStatus(status uint8) {
+	self.status = status
 }
