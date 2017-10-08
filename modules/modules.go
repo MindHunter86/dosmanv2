@@ -23,7 +23,6 @@ type Modules struct {
 
 	// Modules global control:
 	DonePipe chan struct{}
-	ErrorPipe chan *ModuleError
 	WaitGroup sync.WaitGroup
 }
 
@@ -38,15 +37,22 @@ type BaseModule struct {
 }
 
 type ModuleError struct {
-	ModName string
-	ErrLevel string
-
-	E error
+	e error
+	modName string
 }
 
 
 // ModuleError API:
-func (self *ModuleError) Error() error { return self.E }
+func (self *ModuleError) Error() error { return self.e }
+func (self *ModuleError) SetError(e error) *ModuleError {
+	self.e = e
+	return self
+}
+func (self *ModuleError) ModuleName() string { return self.modName }
+func (self *ModuleError) SetModuleName(modName string) *ModuleError {
+	self.modName = modName
+	return self
+}
 
 
 // BaseModules API:

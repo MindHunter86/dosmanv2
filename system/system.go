@@ -44,7 +44,6 @@ func (self *System) Configure() (*System, error) {
 
 	self.mods.Logger = self.log
 	self.mods.DonePipe = make(chan struct{})
-	self.mods.ErrorPipe = make(chan *modules.ModuleError)
 	if self.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
 
 	// modules loader:
@@ -57,6 +56,7 @@ func (self *System) Configure() (*System, error) {
 func (self *System) Bootstrap() error {
 	// define global error var for modError pipe:
 	var e error
+	var modErrorPipe chan *modules.ModuleError = make(chan *modules.ModuleError)
 
 	// define kernel signal listener:
 	var kernelSignal chan os.Signal = make(chan os.Signal)
@@ -65,7 +65,7 @@ func (self *System) Bootstrap() error {
 	// bootstrap configured modules:
 	for modName, modPointer := range self.mods.Hub {
 		if self.mods.Hub[modName].GetModuleStatus() == modules.StatusReady {
-			go self.moduleBootstrap(modName, modPointer)
+			go self.moduleBootstrap(modName, modPointer, modErrorPipe)
 		}
 	}
 
@@ -76,15 +76,10 @@ LOOP:
 		case <-kernelSignal:
 			self.log.Warn().Msg("Syscall.SIG* has been detected! Closing application...")
 			break LOOP
-		case modError := <-self.mods.ErrorPipe:
-			switch modError.ErrLevel {
-			case "debug":
-				self.log.Debug().Err(modError.Error()).Msg("["+modError.ModName+"]: module has debug errors!")
-			default:
-				e = modError.Error() // return error to main.go
-				self.log.Error().Err(e).Msg("["+modError.ModName+"]: module has critical errors!")
-				break LOOP // TODO: make module autorestart
-			}
+		case modError := <-modErrorPipe:
+			e = modError.Error()
+			self.log.Error().Str("MODULE", modError.ModuleName()).Err(e).Msg("CRITICAL ERROR!")
+			break LOOP
 		}
 	}
 
@@ -95,6 +90,38 @@ LOOP:
 	return e
 }
 
+
+// System internal methods:
+func (self *System) preloadModule(modPointer modules.Module, e error) error {
+	// fail app if new module has an error:
+	if e != nil { return e }
+
+	// append new module to map:
+	var modName string = reflect.TypeOf(modPointer).Elem().Name()
+	self.mods.Hub[modName] = &modules.BaseModule{ Module: modPointer }
+	self.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
+
+	self.log.Debug().Str("module", modName).Msg("Module has been configured! Status changed to StatusReady.")
+	return nil
+}
+
+func (self *System) moduleBootstrap(modName string, modPointer *modules.BaseModule, modError chan *modules.ModuleError) {
+	self.log.Info().Msg("Bootstrapping module \""+modName+"\"...")
+
+	self.mods.Hub[modName].SetModuleStatus(modules.StatusRunning)
+	self.mods.WaitGroup.Add(1)
+
+	if e := modPointer.Bootstrap(); e != nil && self.mods.Hub[modName].GetModuleStatus() != modules.StatusStopping {
+		modError<- new(modules.ModuleError).SetModuleName(modName).SetError(e)
+		self.mods.Hub[modName].SetModuleStatus(modules.StatusFailed)
+		self.mods.WaitGroup.Done()
+		return
+	}
+
+	self.mods.WaitGroup.Done()
+	self.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
+	self.log.Info().Msg("Module \""+modName+"\" has been successfully stopped and unloaded!")
+}
 
 func (self *System) shutdown() {
 	// Set status STOP for running modules:
@@ -107,40 +134,4 @@ func (self *System) shutdown() {
 	// Close done pipe and wait modules unload:
 	close(self.mods.DonePipe)
 	self.mods.WaitGroup.Wait()
-
-	// we realy need it?
-	close(self.mods.ErrorPipe)
-}
-
-
-// System internal methods:
-func (self *System) moduleBootstrap(modName string, modPointer *modules.BaseModule) {
-	self.log.Info().Msg("Bootstrapping module \""+modName+"\"...")
-
-	self.mods.Hub[modName].SetModuleStatus(modules.StatusRunning)
-	self.mods.WaitGroup.Add(1)
-
-	if e := modPointer.Bootstrap(); e != nil && self.mods.Hub[modName].GetModuleStatus() != modules.StatusStopping {
-		self.mods.WaitGroup.Done()
-		self.mods.Hub[modName].SetModuleStatus(modules.StatusFailed)
-		self.log.Error().Err(e).Msg("Recieved error from module \""+modName+"\"! Status changed to StatusFailed.")
-		return
-	}
-
-	self.mods.WaitGroup.Done()
-	self.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
-	self.log.Info().Msg("Module \""+modName+"\" has been successfully stopped and unloaded!")
-}
-
-func (self *System) preloadModule(modPointer modules.Module, modError error) error {
-	// fail app if new module has an error:
-	if modError != nil { return modError }
-
-	// append new module to map:
-	var modName string = reflect.TypeOf(modPointer).Elem().Name()
-	self.mods.Hub[modName] = &modules.BaseModule{ Module: modPointer }
-	self.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
-
-	self.log.Debug().Str("module", modName).Msg("Module has been configured! Status changed to StatusReady.")
-	return nil
 }
