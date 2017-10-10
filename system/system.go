@@ -83,6 +83,9 @@ LOOP:
 		}
 	}
 
+	// TODO: Add buf for modErrorPipe. Check self.mods.WaitGroup
+	// TODO: Check module order!!! 
+
 	// stop and unload all modules:
 	self.shutdown()
 

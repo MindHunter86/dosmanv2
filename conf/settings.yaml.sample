@@ -14,3 +14,5 @@ mysql:
     username: "username"
     password: "password"
     database: "database"
+    migrations:
+      dir: "/directory"

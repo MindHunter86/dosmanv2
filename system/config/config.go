@@ -25,6 +25,9 @@ type SysConfig struct {
 	}
 	Mysql struct {
 		Host, Username, Password, Database string
+		Migrations struct {
+			Dir string
+		}
 	}
 }
 

@@ -1,9 +1,10 @@
 package mysql
 
 import (
-	"reflect"
-	"time"
 	"database/sql"
+	"reflect"
+	"sync"
+	"time"
 
 	"mailru/rooster22/modules"
 
@@ -16,10 +17,13 @@ import (
 // Module structs:
 type MysqlModule struct {
 	dbSession *sql.DB
+	dbMigrations *dbMigrations
 	log zerolog.Logger
 
 	modName string
 	mods *modules.Modules
+
+	sync.RWMutex
 }
 
 
@@ -27,8 +31,6 @@ type MysqlModule struct {
 func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
 	self.mods = mods
 	self.modName = reflect.TypeOf(self).Elem().Name()
-
-	// Set module name as prefix for logger:
 	self.log = self.mods.Logger.With().Str("MODULE", self.modName).Logger()
 
 	return self,self.openConnection()
@@ -38,6 +40,13 @@ func (self *MysqlModule) Bootstrap() error {
 	var e error
 	var mysqlChecker *time.Ticker = time.NewTicker(time.Second)
 
+	// check and UP all avaliable migrations:
+	// self.dbMigrations.checkMigrations()
+	self.log.Debug().Msg("Check and Up mysql migrations ...")
+	if e = self.dbMigrations.upMigrations(); e != nil { return e }
+	self.log.Debug().Msg("Mysql migrations OK!")
+
+	self.log.Debug().Msg("Mysql has been bootstrapped!")
 LOOP:
 	for {
 		select {
@@ -63,6 +72,7 @@ LOOP:
 func (self *MysqlModule) openConnection() error {
 	var e error
 	if self.dbSession,e = sql.Open("mysql", self.configureConnetcion().FormatDSN()); e != nil { return e}
+	if self.dbMigrations, e = new(dbMigrations).configure(self.dbSession, self.mods.Config.Mysql.Migrations.Dir); e != nil { return e }
 	return self.dbSession.Ping()
 }
 
