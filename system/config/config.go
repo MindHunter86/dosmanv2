@@ -22,6 +22,7 @@ type SysConfig struct {
 	}
 	Telegram struct {
 		Token string
+		Timeout int
 	}
 	Mysql struct {
 		Host, Username, Password, Database string

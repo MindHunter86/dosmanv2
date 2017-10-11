@@ -8,6 +8,7 @@ base:
 #-- 3-rd party services:
 telegram:
   token: "token:token"
+  timeout: 60
 
 mysql:
     host: "host:poprt"
