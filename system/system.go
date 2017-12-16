@@ -9,8 +9,8 @@ import (
 
 	"mailru/rooster22/modules"
 	"mailru/rooster22/modules/http"
-	"mailru/rooster22/modules/mysql"
-	"mailru/rooster22/modules/telegram"
+//	"mailru/rooster22/modules/mysql"
+//	"mailru/rooster22/modules/telegram"
 	config "mailru/rooster22/system/config"
 
 	"github.com/rs/zerolog"
@@ -49,8 +49,8 @@ func (self *System) Configure() (*System, error) {
 
 	// modules loader:
 	if e = self.preloadModule(new(http.HttpModule).Configure(self.mods, nil)); e != nil { return nil,e }
-	if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, nil)); e != nil { return nil,e }
-	if e = self.preloadModule(new(telegram.TelegramModule).Configure(self.mods, nil)); e != nil { return nil,e }
+	//if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, nil)); e != nil { return nil,e }
+	//if e = self.preloadModule(new(telegram.TelegramModule).Configure(self.mods, nil)); e != nil { return nil,e }
 
 	return self,nil
 }

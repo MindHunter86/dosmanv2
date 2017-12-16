@@ -26,7 +26,7 @@ func (m *TgrmMysqlApi) UpdateCustomer(phone, field string, value interface{}) er
 	var customer *TgrmCustomer = new(TgrmMysqlApi).GetCustomer(phone)
 	mField,ok := reflect.TypeOf(customer).FieldByName(filed); if !ok { return errors.New("reflect error") }
 
-	var mValue *reflect.Value := reflect.New(mField.Type)
+	var mValue *reflect.Value = reflect.New(mField.Type)
 	mValue.Set(value)
 
 	if e := m.db.Query("UPDATE customers SET ?=? where phone=?", mField.Name, value, phone); e != nil { return e }
