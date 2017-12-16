@@ -1,7 +1,7 @@
 package main
 
 import "os"
-import "mailru/rooster22/system"
+import "mh00appserver/system"
 import "github.com/rs/zerolog"
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"mailru/rooster22/modules"
+	"mh00appserver/modules"
 
 	"github.com/rs/zerolog"
 	_ "github.com/go-sql-driver/mysql"

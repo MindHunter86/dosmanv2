@@ -1,7 +1,7 @@
 package http
 
 import "reflect"
-import "mailru/rooster22/modules"
+import "mh00appserver/modules"
 import "github.com/rs/zerolog"
 
 

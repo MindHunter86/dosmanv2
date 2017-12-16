@@ -7,11 +7,11 @@ import (
 	"sync"
 	"syscall"
 
-	"mailru/rooster22/modules"
-	"mailru/rooster22/modules/http"
-//	"mailru/rooster22/modules/mysql"
-//	"mailru/rooster22/modules/telegram"
-	config "mailru/rooster22/system/config"
+	"mh00appserver/modules"
+	"mh00appserver/modules/http"
+//	"mh00appserver/modules/mysql"
+//	"mh00appserver/modules/telegram"
+	config "mh00appserver/system/config"
 
 	"github.com/rs/zerolog"
 )

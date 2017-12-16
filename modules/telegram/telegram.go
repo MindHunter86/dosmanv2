@@ -3,7 +3,7 @@ package telegram
 import (
 	"reflect"
 
-	"mailru/rooster22/modules"
+	"mh00appserver/modules"
 
 	"github.com/rs/zerolog"
 	"github.com/go-telegram-bot-api/telegram-bot-api"

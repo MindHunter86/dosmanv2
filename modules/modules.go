@@ -2,7 +2,7 @@ package modules
 
 import (
 	"sync"
-	config "mailru/rooster22/system/config"
+	config "mh00appserver/system/config"
 	"github.com/rs/zerolog"
 )
 

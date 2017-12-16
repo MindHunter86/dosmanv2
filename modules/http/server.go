@@ -1,7 +1,7 @@
 package http
 
 import "net"
-import config "mailru/rooster22/system/config"
+import config "mh00appserver/system/config"
 import "github.com/valyala/fasthttp"
 
 
