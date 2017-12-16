@@ -13,10 +13,9 @@ func (m *tgrmCustomer) configure(tgb *tgbotapi.BotAPI) (*tgrmCustomer,error) {
 }
 
 func (m *tgrmCustomer) requestContact(chatid int64) {
-	msgAgreement := tgbotapi.NewMessage(chatid, "Для получения уведомлений о входе на сервера от меня, тебе необходимо зарегистрироваться. При нажатии на кнопку ДА, телеграм расшарит твой телефон для меня. После я тебя запишу тебя в свою базу и буду отправлять уведомления по команде в мою апишку. При нажатии на кнопку НЕТ мы просто завершим твой диалог. Итак. Согласен предоставить мне номер своего телефона?")
+	msgAgreement := tgbotapi.NewMessage(chatid, "Для получения уведомлений о входе на сервера от меня, тебе необходимо зарегистрироваться. При нажатии на кнопку, телеграм расшарит твой телефон для меня. После я тебя запишу тебя в свою базу и буду отправлять уведомления по команде в мою апишку.")
 	msgAgreement.ReplyMarkup = tgbotapi.NewReplyKeyboard([]tgbotapi.KeyboardButton{
-		tgbotapi.NewKeyboardButtonContact("Да"),
-		tgbotapi.NewKeyboardButton("Нет"),
+		tgbotapi.NewKeyboardButtonContact("Заргеистрировать в системе"),
 	})
 	m.tgb.Send(msgAgreement)
 }
@@ -36,5 +35,3 @@ func (m *tgrmCustomer) registerContact(chatid int64, fromid int, contact *tgbota
 
 	return nil
 }
-
-func (m *tgrmCustomer) updateCustomer(contact *tgbotapi.Contact) error { return nil }

@@ -3,7 +3,6 @@ package mysql
 import (
 	"database/sql"
 	"reflect"
-	"sync"
 	"time"
 
 	"mailru/rooster22/modules"
@@ -22,8 +21,6 @@ type MysqlModule struct {
 
 	modName string
 	mods *modules.Modules
-
-	sync.RWMutex
 }
 
 
@@ -40,8 +37,6 @@ func (self *MysqlModule) Bootstrap() error {
 	var e error
 	var mysqlChecker *time.Ticker = time.NewTicker(time.Second)
 
-	// check and UP all avaliable migrations:
-	// self.dbMigrations.checkMigrations()
 	self.log.Debug().Msg("Check and Up mysql migrations ...")
 	if e = self.dbMigrations.upMigrations(); e != nil { return e }
 	self.log.Debug().Msg("Mysql migrations OK!")
