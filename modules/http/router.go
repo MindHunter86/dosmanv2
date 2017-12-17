@@ -1,4 +1,4 @@
-package http
+package main
 
 import "github.com/valyala/fasthttp"
 import "github.com/buaazp/fasthttprouter"

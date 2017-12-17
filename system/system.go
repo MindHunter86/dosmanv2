@@ -6,9 +6,11 @@ import (
 	"reflect"
 	"sync"
 	"syscall"
+	"path/filepath"
+	"plugin"
 
 	"mh00appserver/modules"
-	"mh00appserver/modules/http"
+//	"mh00appserver/modules/http"
 //	"mh00appserver/modules/mysql"
 //	"mh00appserver/modules/telegram"
 	config "mh00appserver/system/config"
@@ -28,34 +30,39 @@ type System struct {
 
 
 // System API:
-func (self *System) SetLogger(logger *zerolog.Logger) *System {
-	self.log = logger
-	return self
+func (m *System) SetLogger(logger *zerolog.Logger) *System {
+	m.log = logger
+	return m
 }
 
-func (self *System) Configure() (*System, error) {
+func (m *System) Configure() (*System, error) {
 	var e error
 
 	// parse configuration file:
-	if self.cfg, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
+	if m.cfg, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
 
 	// define new modulelist:
-	self.mods = new(modules.Modules)
-	self.mods.Hub = make(map[string]*modules.BaseModule)
+	m.mods = new(modules.Modules)
+	m.mods.Hub = make(map[string]*modules.BaseModule)
 
-	self.mods.Logger = self.log
-	self.mods.DonePipe = make(chan struct{})
-	if self.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
+	m.mods.Logger = m.log
+	m.mods.DonePipe = make(chan struct{})
+	if m.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
 
 	// modules loader:
-	if e = self.preloadModule(new(http.HttpModule).Configure(self.mods, nil)); e != nil { return nil,e }
-	//if e = self.preloadModule(new(mysql.MysqlModule).Configure(self.mods, nil)); e != nil { return nil,e }
-	//if e = self.preloadModule(new(telegram.TelegramModule).Configure(self.mods, nil)); e != nil { return nil,e }
+	// if e = m.preloadModule(new(http.HttpModule).Configure(m.mods, nil)); e != nil { return nil,e }
+	//if e = m.preloadModule(new(mysql.MysqlModule).Configure(m.mods, nil)); e != nil { return nil,e }
+	//if e = m.preloadModule(new(telegram.TelegramModule).Configure(m.mods, nil)); e != nil { return nil,e }
 
-	return self,nil
+	// plugins loader:
+	if e = m.preloadPlugin("./plugins/http.so"); e != nil {
+		return nil,e
+	}
+
+	return m,nil
 }
 
-func (self *System) Bootstrap() error {
+func (m *System) Bootstrap() error {
 	// define global error var for modError pipe:
 	var e error
 	var modErrorPipe chan *modules.ModuleError = make(chan *modules.ModuleError)
@@ -65,9 +72,9 @@ func (self *System) Bootstrap() error {
 	signal.Notify(kernelSignal, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGQUIT)
 
 	// bootstrap configured modules:
-	for modName, modPointer := range self.mods.Hub {
-		if self.mods.Hub[modName].GetModuleStatus() == modules.StatusReady {
-			go self.moduleBootstrap(modName, modPointer, modErrorPipe)
+	for modName, modPointer := range m.mods.Hub {
+		if m.mods.Hub[modName].GetModuleStatus() == modules.StatusReady {
+			go m.moduleBootstrap(modName, modPointer, modErrorPipe)
 		}
 	}
 
@@ -76,20 +83,20 @@ LOOP:
 	for {
 		select {
 		case <-kernelSignal:
-			self.log.Warn().Msg("Syscall.SIG* has been detected! Closing application...")
+			m.log.Warn().Msg("Syscall.SIG* has been detected! Closing application...")
 			break LOOP
 		case modError := <-modErrorPipe:
 			e = modError.Error()
-			self.log.Error().Str("MODULE", modError.ModuleName()).Err(e).Msg("CRITICAL ERROR!")
+			m.log.Error().Str("MODULE", modError.ModuleName()).Err(e).Msg("CRITICAL ERROR!")
 			break LOOP
 		}
 	}
 
-	// TODO: Add buf for modErrorPipe. Check self.mods.WaitGroup
+	// TODO: Add buf for modErrorPipe. Check m.mods.WaitGroup
 	// TODO: Check module order!!! 
 
 	// stop and unload all modules:
-	self.shutdown()
+	m.shutdown()
 
 	// return nil or errors from modules (over mods.ErrorPipe):
 	return e
@@ -97,46 +104,73 @@ LOOP:
 
 
 // System internal methods:
-func (self *System) preloadModule(modPointer modules.Module, e error) error {
+func (m *System) preloadModule(modPointer modules.Module, e error) error {
 	// fail app if new module has an error:
 	if e != nil { return e }
 
 	// append new module to map:
 	var modName string = reflect.TypeOf(modPointer).Elem().Name()
-	self.mods.Hub[modName] = &modules.BaseModule{ Module: modPointer }
-	self.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
+	m.mods.Hub[modName] = &modules.BaseModule{ Module: modPointer }
+	m.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
 
-	self.log.Debug().Str("module", modName).Msg("Module has been configured! Status changed to StatusReady.")
+	m.log.Debug().Str("module", modName).Msg("Module has been configured! Status changed to StatusReady.")
 	return nil
 }
 
-func (self *System) moduleBootstrap(modName string, modPointer *modules.BaseModule, modError chan *modules.ModuleError) {
-	self.log.Info().Msg("Bootstrapping module \""+modName+"\"...")
+func (m *System) preloadPlugin(path string) error {
+	// OLD: if e = m.preloadModule(new(http.HttpModule).Configure(m.mods, nil)); e != nil { return nil,e }
+	plgName := filepath.Base(path)
 
-	self.mods.Hub[modName].SetModuleStatus(modules.StatusRunning)
-	self.mods.WaitGroup.Add(1)
+	plg, e := plugin.Open(path); if e != nil {
+		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not load plugin!")
+		return e
+	}
 
-	if e := modPointer.Bootstrap(); e != nil && self.mods.Hub[modName].GetModuleStatus() != modules.StatusStopping {
+	plgPointer, e := plg.Lookup("Plugin"); if e != nil {
+//	plgPointer, e := plg.Lookup("Configure"); if e != nil {
+		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not find the Configure method!")
+		return e
+	}
+
+	modPointer, e := plgPointer.(modules.Module).Configure(m.mods, nil); if e != nil {
+		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not execute Configure method!")
+		return e
+	}
+
+	m.mods.Hub[plgName] = &modules.BaseModule{ Module: modPointer }
+	m.mods.Hub[plgName].SetModuleStatus(modules.StatusReady)
+
+	m.log.Debug().Str("plugin", plgName).Msg("Module has been successfully loaded! Module status: READY")
+	return nil
+}
+
+func (m *System) moduleBootstrap(modName string, modPointer *modules.BaseModule, modError chan *modules.ModuleError) {
+	m.log.Info().Msg("Bootstrapping module \""+modName+"\"...")
+
+	m.mods.Hub[modName].SetModuleStatus(modules.StatusRunning)
+	m.mods.WaitGroup.Add(1)
+
+	if e := modPointer.Bootstrap(); e != nil && m.mods.Hub[modName].GetModuleStatus() != modules.StatusStopping {
 		modError<- new(modules.ModuleError).SetModuleName(modName).SetError(e)
-		self.mods.Hub[modName].SetModuleStatus(modules.StatusFailed)
-		self.mods.WaitGroup.Done()
+		m.mods.Hub[modName].SetModuleStatus(modules.StatusFailed)
+		m.mods.WaitGroup.Done()
 		return
 	}
 
-	self.mods.WaitGroup.Done()
-	self.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
-	self.log.Info().Msg("Module \""+modName+"\" has been successfully stopped and unloaded!")
+	m.mods.WaitGroup.Done()
+	m.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
+	m.log.Info().Msg("Module \""+modName+"\" has been successfully stopped and unloaded!")
 }
 
-func (self *System) shutdown() {
+func (m *System) shutdown() {
 	// Set status STOP for running modules:
-	for modName, _ := range self.mods.Hub {
-		if self.mods.Hub[modName].GetModuleStatus() == modules.StatusRunning {
-			self.mods.Hub[modName].SetModuleStatus(modules.StatusStopping)
+	for modName, _ := range m.mods.Hub {
+		if m.mods.Hub[modName].GetModuleStatus() == modules.StatusRunning {
+			m.mods.Hub[modName].SetModuleStatus(modules.StatusStopping)
 		}
 	}
 
 	// Close done pipe and wait modules unload:
-	close(self.mods.DonePipe)
-	self.mods.WaitGroup.Wait()
+	close(m.mods.DonePipe)
+	m.mods.WaitGroup.Wait()
 }

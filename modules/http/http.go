@@ -1,4 +1,4 @@
-package http
+package main
 
 import "reflect"
 import "mh00appserver/modules"
@@ -45,3 +45,5 @@ func (self *HttpModule) parentEventHandler () {
 	// close httpServer socket for fasthttp fatal error:
 	self.http.socket.Close()
 }
+
+var Plugin HttpModule
