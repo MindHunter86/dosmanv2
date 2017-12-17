@@ -2,10 +2,15 @@
 base:
     debug: true
     log_level: "debug"
-    http:
-        listen: "ip:port"
+    plugins:
+      basedir: "./plugins"
+      loadlist:
+        - http
 
-#-- 3-rd party services:
+#-- 3-rd party plugins:
+http:
+  listen: "ip:port"
+
 telegram:
   token: "token:token"
   timeout: 60

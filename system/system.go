@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sync"
 	"syscall"
-	"path/filepath"
+//	"path/filepath"
 	"plugin"
 
 	"mh00appserver/modules"
@@ -55,8 +55,14 @@ func (m *System) Configure() (*System, error) {
 	//if e = m.preloadModule(new(telegram.TelegramModule).Configure(m.mods, nil)); e != nil { return nil,e }
 
 	// plugins loader:
-	if e = m.preloadPlugin("./plugins/http.so"); e != nil {
-		return nil,e
+	for _,pluginName := range m.cfg.Base.Plugins.Loadlist {
+		m.log.Debug().Str("plugin", pluginName).Msg("Trying to stat plugin file...")
+
+		pluginFile, e := os.Stat(m.cfg.Base.Plugins.Basedir + "/" + pluginName + ".so"); if os.IsNotExist(e) {
+			m.log.Warn().Str("plugin", pluginName).Msg("Could not find plugin file!"); return nil,e
+		} else if e != nil { m.log.Error().Str("plugin", pluginName).Err(e).Msg("Undefined error!") ; return nil,e }
+
+		if e = m.preloadPlugin(pluginFile.Name()); e != nil { return nil,e }
 	}
 
 	return m,nil
@@ -117,11 +123,10 @@ func (m *System) preloadModule(modPointer modules.Module, e error) error {
 	return nil
 }
 
-func (m *System) preloadPlugin(path string) error {
-	// OLD: if e = m.preloadModule(new(http.HttpModule).Configure(m.mods, nil)); e != nil { return nil,e }
-	plgName := filepath.Base(path)
+func (m *System) preloadPlugin(plgName string) error {
+	m.log.Debug().Str("plugin", plgName).Msg("preloadPlugin started...")
 
-	plg, e := plugin.Open(path); if e != nil {
+	plg, e := plugin.Open(m.cfg.Base.Plugins.Basedir + "/" + plgName); if e != nil {
 		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not load plugin!")
 		return e
 	}

@@ -16,7 +16,7 @@ func (self *httpServer) configure(cfg *config.SysConfig) (*httpServer, error) {
 	var e error
 
 	// create network socket for future serving:
-	if self.socket, e = net.Listen("tcp4", cfg.Base.Http.Listen); e != nil { return nil,e }
+	if self.socket, e = net.Listen("tcp4", cfg.Http.Listen); e != nil { return nil,e }
 	// define http router for REST api:
 	self.router = new(httpRouter).configure()
 

@@ -16,9 +16,13 @@ type SysConfig struct {
 	Base struct {
 		Debug bool
 		Log_level string
-		Http struct {
-			Listen string
+		Plugins struct {
+			Basedir string
+			Loadlist []string
 		}
+	}
+	Http struct {
+		Listen string
 	}
 	Telegram struct {
 		Token string
