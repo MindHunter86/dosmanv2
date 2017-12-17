@@ -3,16 +3,11 @@ package system
 import (
 	"os"
 	"os/signal"
-	"reflect"
 	"sync"
 	"syscall"
-//	"path/filepath"
 	"plugin"
 
 	"mh00appserver/modules"
-//	"mh00appserver/modules/http"
-//	"mh00appserver/modules/mysql"
-//	"mh00appserver/modules/telegram"
 	config "mh00appserver/system/config"
 
 	"github.com/rs/zerolog"
@@ -48,11 +43,6 @@ func (m *System) Configure() (*System, error) {
 	m.mods.Logger = m.log
 	m.mods.DonePipe = make(chan struct{})
 	if m.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
-
-	// modules loader:
-	// if e = m.preloadModule(new(http.HttpModule).Configure(m.mods, nil)); e != nil { return nil,e }
-	//if e = m.preloadModule(new(mysql.MysqlModule).Configure(m.mods, nil)); e != nil { return nil,e }
-	//if e = m.preloadModule(new(telegram.TelegramModule).Configure(m.mods, nil)); e != nil { return nil,e }
 
 	// plugins loader:
 	for _,pluginName := range m.cfg.Base.Plugins.Loadlist {
@@ -110,19 +100,6 @@ LOOP:
 
 
 // System internal methods:
-func (m *System) preloadModule(modPointer modules.Module, e error) error {
-	// fail app if new module has an error:
-	if e != nil { return e }
-
-	// append new module to map:
-	var modName string = reflect.TypeOf(modPointer).Elem().Name()
-	m.mods.Hub[modName] = &modules.BaseModule{ Module: modPointer }
-	m.mods.Hub[modName].SetModuleStatus(modules.StatusReady)
-
-	m.log.Debug().Str("module", modName).Msg("Module has been configured! Status changed to StatusReady.")
-	return nil
-}
-
 func (m *System) preloadPlugin(plgName string) error {
 	m.log.Debug().Str("plugin", plgName).Msg("preloadPlugin started...")
 
@@ -132,7 +109,6 @@ func (m *System) preloadPlugin(plgName string) error {
 	}
 
 	plgPointer, e := plg.Lookup("Plugin"); if e != nil {
-//	plgPointer, e := plg.Lookup("Configure"); if e != nil {
 		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not find the Configure method!")
 		return e
 	}
@@ -145,7 +121,7 @@ func (m *System) preloadPlugin(plgName string) error {
 	m.mods.Hub[plgName] = &modules.BaseModule{ Module: modPointer }
 	m.mods.Hub[plgName].SetModuleStatus(modules.StatusReady)
 
-	m.log.Debug().Str("plugin", plgName).Msg("Module has been successfully loaded! Module status: READY")
+	m.log.Debug().Str("plugin", plgName).Msg("Module has been successfully loaded and configured! Module status: StatusReady")
 	return nil
 }
 
