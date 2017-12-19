@@ -34,6 +34,11 @@ func (m *TelegramModule) Configure(mods *modules.Modules, args ...interface{}) (
 func (m *TelegramModule) Bootstrap() error {
 	if e := m.telegramAuthorization(); e != nil { return e }
 
+	if m.mods.Hub['mysql'].GetModuleStatus() != modules.StatusReady {
+		m.logger.Error().Msg("Module requires mysql plugin!")
+		return nil
+	}
+
 	m.logger.Debug().Msg(m.modName+" has been bottstrapped!")
 LOOP:
 	for {

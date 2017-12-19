@@ -1,4 +1,4 @@
-package mysql
+package main
 
 import (
 	"database/sql"
@@ -16,13 +16,15 @@ import (
 // Module structs:
 type MysqlModule struct {
 	dbSession *sql.DB
-	dbMigrations *dbMigrations
+	migrations *sqlMigrate
 	log zerolog.Logger
 
 	modName string
 	mods *modules.Modules
 }
 
+// exported as symbol named Plugin
+var Plugin MysqlModule
 
 // Module API:
 func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
@@ -38,8 +40,13 @@ func (self *MysqlModule) Bootstrap() error {
 	var mysqlChecker *time.Ticker = time.NewTicker(time.Second)
 
 	self.log.Debug().Msg("Check and Up mysql migrations ...")
-	if e = self.dbMigrations.upMigrations(); e != nil { return e }
-	self.log.Debug().Msg("Mysql migrations OK!")
+	if sqlSession, err := sql.Open("mysql", self.configureConnetcion().FormatDSN()); err == nil { // connection for sql migrations
+		if self.migrations, e = new(sqlMigrate).migrate(sqlSession, self.mods.Config.Mysql.Migrations.Dir, self.mods.Config.Mysql.Migrations.Version); e != nil {
+			self.log.Error().Err(e).Msg("MySQL migrations error!")
+			return e
+		}
+		self.log.Debug().Msg("MySQL migrations are OK!")
+	} else { return err }
 
 	self.log.Debug().Msg("Mysql has been bootstrapped!")
 LOOP:
@@ -67,7 +74,6 @@ LOOP:
 func (self *MysqlModule) openConnection() error {
 	var e error
 	if self.dbSession,e = sql.Open("mysql", self.configureConnetcion().FormatDSN()); e != nil { return e}
-	if self.dbMigrations, e = new(dbMigrations).configure(self.dbSession, self.mods.Config.Mysql.Migrations.Dir); e != nil { return e }
 	return self.dbSession.Ping()
 }
 
@@ -104,7 +110,7 @@ func (self *MysqlModule) configureConnetcion() *mysql.Config {
 	cnf.ClientFoundRows = false
 	cnf.ColumnsWithAlias = false
 	cnf.InterpolateParams = false
-	cnf.MultiStatements = false
+	cnf.MultiStatements = true
 	cnf.ParseTime = true
 	cnf.Strict = true // XXX: Only for debug
 

@@ -32,6 +32,7 @@ type SysConfig struct {
 		Host, Username, Password, Database string
 		Migrations struct {
 			Dir string
+			Version uint
 		}
 	}
 }

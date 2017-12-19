@@ -1,4 +1,4 @@
--- +goose Up
+BEGIN;
 
 DROP TABLE IF EXISTS chatrooms;
 CREATE TABLE chatrooms (
@@ -17,6 +17,4 @@ CREATE TABLE customers (
     ON DELETE CASCADE
 ) ENGINE=INNODB;
 
--- +goose Down
-DROP TABLE IF EXISTS customers;
-DROP TABLE IF EXISTS chatrooms;
+COMMIT;

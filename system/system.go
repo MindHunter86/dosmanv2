@@ -121,7 +121,7 @@ func (m *System) preloadPlugin(plgName string) error {
 	m.mods.Hub[plgName] = &modules.BaseModule{ Module: modPointer }
 	m.mods.Hub[plgName].SetModuleStatus(modules.StatusReady)
 
-	m.log.Debug().Str("plugin", plgName).Msg("Module has been successfully loaded and configured! Module status: StatusReady")
+	m.log.Info().Str("plugin", plgName).Msg("Module has been successfully loaded and configured! Module status: StatusReady")
 	return nil
 }
 
