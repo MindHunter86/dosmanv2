@@ -15,6 +15,9 @@ type HttpModule struct {
 	donePipe chan struct{}
 }
 
+// exported as symbol named Plugin
+var Plugin HttpModule
+
 
 // Module API:
 func (self *HttpModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
@@ -45,5 +48,3 @@ func (self *HttpModule) parentEventHandler () {
 	// close httpServer socket for fasthttp fatal error:
 	self.http.socket.Close()
 }
-
-var Plugin HttpModule

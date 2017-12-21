@@ -1,4 +1,4 @@
-package telegram
+package main
 
 
 type tgrmRequest struct {

@@ -1,4 +1,4 @@
-package telegram
+package main
 
 import (
 	"reflect"
@@ -12,6 +12,7 @@ import (
 
 type TelegramModule struct {
 	modName string
+	db *dbDriver
 	tbot *tgbotapi.BotAPI
 	tbotUpdates tgbotapi.UpdatesChannel
 	tbotCustomer *tgrmCustomer
@@ -20,6 +21,9 @@ type TelegramModule struct {
 	logger zerolog.Logger
 }
 
+// export as symbol for app server:
+var Plugin TelegramModule
+
 
 // TelegramModule API:
 func (m *TelegramModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
@@ -27,6 +31,8 @@ func (m *TelegramModule) Configure(mods *modules.Modules, args ...interface{}) (
 	m.modName = reflect.TypeOf(m).Elem().Name()
 	m.logger = m.mods.Logger.With().Str("MODULE", m.modName).Logger()
 
+	var e error
+	if m.db, e = new(dbDriver).configure(m.mods); e != nil { return nil,e }
 
 	return m,nil
 }
@@ -34,12 +40,17 @@ func (m *TelegramModule) Configure(mods *modules.Modules, args ...interface{}) (
 func (m *TelegramModule) Bootstrap() error {
 	if e := m.telegramAuthorization(); e != nil { return e }
 
-	if m.mods.Hub['mysql'].GetModuleStatus() != modules.StatusReady {
-		m.logger.Error().Msg("Module requires mysql plugin!")
-		return nil
-	}
+	// check module requirements:
+	if z,ok := m.mods.Hub["mysql.so"]; ok {
+		if z.GetModuleStatus() != modules.StatusReady || z.GetModuleStatus() != modules.StatusRunning {
+			m.logger.Warn().Msg("Required plugin MySQL has't \"Ready\" status!")
+			// FIXME: remove this Warn block
+		}
+	} else { m.logger.Error().Msg("Module require MySQL plugin!"); return nil }
 
 	m.logger.Debug().Msg(m.modName+" has been bottstrapped!")
+
+	// start bootstrap loop:
 LOOP:
 	for {
 		select{
@@ -53,11 +64,11 @@ LOOP:
 					m.logger.Warn().Err(e).Msg("Some errors in telegram command router!")
 				}
 			} else if updt.Message.Contact != nil {
-				if e := m.tbotCustomer.registerContact(updt.Message.Chat.ID, updt.Message.From.ID, updt.Message.Contact); e != nil {
+				if e := m.tbotCustomer.registerContact(m.db, updt.Message); e != nil {
 					m.logger.Warn().Err(e).Msg("Some errors in telegram customer registration!")
 				}
 			} else {
-				m.logger.Debug().Msg(updt.Message.Text)
+				m.logger.Debug().Str("message", updt.Message.Text).Msg("New message from custmer!")
 				continue // TODO: add warning message?
 			}
 		}

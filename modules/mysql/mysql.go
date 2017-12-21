@@ -23,7 +23,7 @@ type MysqlModule struct {
 	mods *modules.Modules
 }
 
-// exported as symbol named Plugin
+// export as symbol for app server:
 var Plugin MysqlModule
 
 // Module API:
