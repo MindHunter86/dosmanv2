@@ -16,6 +16,9 @@ type SysConfig struct {
 	Base struct {
 		Debug bool
 		Log_level string
+		Broker struct {
+			Buffer int
+		}
 		Plugins struct {
 			Basedir string
 			Loadlist []string
