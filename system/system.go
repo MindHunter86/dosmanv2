@@ -8,7 +8,7 @@ import (
 	"plugin"
 
 	"mh00appserver/modules"
-	config "mh00appserver/system/config"
+	"mh00appserver/system/config"
 
 	"github.com/rs/zerolog"
 )
