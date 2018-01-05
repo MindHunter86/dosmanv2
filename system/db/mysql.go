@@ -1,129 +1,144 @@
 package db
 
 import (
+	"os"
+	"errors"
 	"database/sql"
-	"reflect"
 	"time"
-
-	"dosmanv2/modules"
 
 	"github.com/rs/zerolog"
 	_ "github.com/go-sql-driver/mysql"
 	mysql "github.com/go-sql-driver/mysql"
+
+	"github.com/mattes/migrate"
+	mysql_migrate "github.com/mattes/migrate/database/mysql"
+	_ "github.com/mattes/migrate/source/file"
 )
 
 
-// Module structs:
-type MySQLModule struct {
-	dbSession *sql.DB
-	migrations *sqlMigrate
-	log zerolog.Logger
-	topic *broker.Topic
+var (
+	errDBCredsIsNil = errors.New("Colud not exec construct for DBDriver: given credentials variable are not valid!")
+)
 
-	modName string
-	mods *modules.Modules
+
+// MySQLDriver definitions:
+type MySQLDriver struct {
+	log zerolog.Logger
+	session *sql.DB
+	credentials *MySQLCredentials
+	migration *migrate.Migrate
+}
+
+type MySQLCredentials struct {
+	Host, Port, Username, Password, Database string
+	MgrDirectory string
+	MgrVersion uint
+	Debug bool
 }
 
 
 // DBDriver API:
-// func (m *MySQLModule) Construct(config)
+func (m *MySQLDriver) Construct(creds *MySQLCredentials) (DBDriver, error) {
+	if creds == nil { return nil,errDBCredsIsNil }
 
-// Module API:
-func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
-
-	var e error
-
-	self.mods = mods
-	self.modName = reflect.TypeOf(self).Elem().Name()
-	self.log = self.mods.Logger.With().Str("MODULE", self.modName).Logger()
-	self.topic,e = self.mods.Broker.CreateTopic("mysql"); if e != nil { return nil,e }
-
-	return self,self.openConnection()
-}
-
-func (self *MysqlModule) Bootstrap() error {
-	var e error
-	var brokerInbox chan *broker.Message
-	var mysqlChecker *time.Ticker = time.NewTicker(time.Second)
-
-	self.log.Debug().Msg("Check and Up mysql migrations ...")
-	if sqlSession, err := sql.Open("mysql", self.configureConnetcion().FormatDSN()); err == nil { // connection for sql migrations
-		if self.migrations, e = new(sqlMigrate).migrate(sqlSession, self.mods.Config.Mysql.Migrations.Dir, self.mods.Config.Mysql.Migrations.Version); e != nil {
-			self.log.Error().Err(e).Msg("MySQL migrations error!")
-			return e
-		}
-		self.log.Debug().Msg("MySQL migrations are OK!")
-	} else { return err }
-
-	brokerInbox = self.topic.Subscribe().GetInbox()
-
-	self.log.Debug().Msg("Mysql has been bootstrapped!")
-LOOP:
-	for {
-		select {
-		case <-brokerInbox:
-			self.log.Debug().Msg("brokerInbox has been triggered!")
-		case <-self.mods.DonePipe:
-			break LOOP
-		case <-mysqlChecker.C:
-			if _, e = self.dbSession.Exec("DO 1;"); e != nil { break LOOP }
-		}
+	// log initialization for active debugging:
+	if creds.Debug {
+		m.log = zerolog.New(zerolog.ConsoleWriter{
+			Out: os.Stderr }).With().Timestamp().Str("module", "DBDriver").Logger()
+		m.log.Debug().Msg("DBDriver logger for active debug has been successfully initialized!")
 	}
 
-	// stop timer and close mysql connection:
-	mysqlChecker.Stop()
-	if err := self.closeConnection(); err != nil {
-		self.log.Error().Err(err).Msg("Could not successfully close mySQL connection!")
+	// set default values for mysql credentials:
+	switch {
+		case creds.Database == "":
+			creds.Database = "dosmanv2"
+		case creds.Host == "":
+			creds.Host = "localhost"
+		case creds.Password == "":
+			creds.Password = "1234"
+		case creds.Port == "":
+			creds.Port = "3306"
+		case creds.Username == "":
+			creds.Username = "dosmanv2"
 	}
 
-	// return only for/select events:
-	return e
+	m.debugEcho(nil, "Check MySQL migrations ...")
+	if mSession,err := sql.Open("mysql", m.configureConnection().FormatDSN()); err == nil {
+		if e := m.runMigrations(mSession); e != nil {
+			m.debugEcho(e, "MySQL migrations were failed!")
+			return nil,e
+		}
+
+		m.debugEcho(nil, "MySQL migrations are OK!")
+	} else { return nil,err }
+
+	return m,m.createConnection()
 }
 
+func (m *MySQLDriver) Destruct() error { return m.dropConnection() }
 
-// MysqlModule internal methods:
-func (self *MysqlModule) openConnection() error {
+
+// MySQLDriver internal API:
+func (m *MySQLDriver) debugEcho(e error, msg string) {
+	if ! m.credentials.Debug { return }
+
+	switch e {
+		case nil: m.log.Debug().Msg(msg)
+		default: m.log.Debug().Err(e).Msg(msg)
+	}
+}
+
+func (m *MySQLDriver) createConnection() error {
 	var e error
-	if self.dbSession,e = sql.Open("mysql", self.configureConnetcion().FormatDSN()); e != nil { return e}
-	return self.dbSession.Ping()
+	if m.session,e = sql.Open("mysql", m.configureConnection().FormatDSN()); e != nil { return e }
+	return m.session.Ping()
 }
 
-func (self *MysqlModule) closeConnection() error {
-	return self.dbSession.Close()
+func (m *MySQLDriver) configureConnection() *mysql.Config {
+	// https://github.com/go-sql-driver/mysql - mysql lib configuration
+
+	location, e := time.LoadLocation("Europe/Moscow"); if e != nil {
+		location = time.UTC
+		m.debugEcho(e, "Could not get location for DBDriver configuration!")
+	}
+
+	return &mysql.Config{
+		Net: "tcp",
+		Addr: m.credentials.Host + ":" + m.credentials.Port,
+		User: m.credentials.Username,
+		Passwd: m.credentials.Password,
+		DBName: m.credentials.Database,
+		Collation: "utf8_general_ci",
+		MaxAllowedPacket: 0,
+		TLSConfig: "false",
+		Loc: location,
+
+		Timeout: 10 * time.Second,
+		ReadTimeout: 5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+
+		AllowAllFiles: false,
+		AllowCleartextPasswords: false,
+		AllowNativePasswords: false,
+		AllowOldPasswords: false,
+		ClientFoundRows: false,
+		ColumnsWithAlias: false,
+		InterpolateParams: false,
+		MultiStatements: true,
+		ParseTime: true,
+		Strict: m.credentials.Debug }
 }
 
-func (self *MysqlModule) configureConnetcion() *mysql.Config {
-	var cnf *mysql.Config = new(mysql.Config)
+func (m *MySQLDriver) dropConnection() error { return m.session.Close() }
 
-	// https://github.com/go-sql-driver/mysql - docs
-	cnf.Net = "tcp"
-	cnf.Addr = self.mods.Config.Mysql.Host
-	cnf.User = self.mods.Config.Mysql.Username
-	cnf.Passwd = self.mods.Config.Mysql.Password
-	cnf.DBName = self.mods.Config.Mysql.Database
-	cnf.Collation = "utf8_general_ci"
-	cnf.MaxAllowedPacket = 0
-	cnf.TLSConfig = "false"
-	if tloc, e := time.LoadLocation("Europe/Moscow"); e != nil {	// "Europe%2FMoscow"
-		self.log.Warn().Err(e).Msg("Could not get location in configuration files parsing!")
-		//		self.log.W(log.LLEV_DBG, "Time location parsing error! | " + e.Error())
-		cnf.Loc = time.UTC
-	} else { cnf.Loc = tloc }
+func (m *MySQLDriver) runMigrations(mSession *sql.DB) error {
+	var e error
 
-	cnf.Timeout = 10 * time.Second
-	cnf.ReadTimeout = 5 * time.Second
-	cnf.WriteTimeout = 10 * time.Second
+	mDriver, _ := mysql_migrate.WithInstance(mSession, &mysql_migrate.Config{})
+	if m.migration, e = migrate.NewWithDatabaseInstance("file://"+m.credentials.MgrDirectory, "mysql", mDriver); e != nil {
+		return e
+	}
 
-	cnf.AllowAllFiles = false
-	cnf.AllowCleartextPasswords = false
-	cnf.AllowNativePasswords = false
-	cnf.AllowOldPasswords = false
-	cnf.ClientFoundRows = false
-	cnf.ColumnsWithAlias = false
-	cnf.InterpolateParams = false
-	cnf.MultiStatements = true
-	cnf.ParseTime = true
-	cnf.Strict = true // XXX: Only for debug
-
-	return cnf
+	if e = m.migration.Migrate(m.credentials.MgrVersion); e != nil && e != migrate.ErrNoChange { return e }
+	return nil
 }
