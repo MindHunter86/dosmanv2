@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"mh00appserver/modules"
+	"mh00appserver/system/broker"
 
 	"github.com/rs/zerolog"
 	_ "github.com/go-sql-driver/mysql"
@@ -18,6 +19,7 @@ type MysqlModule struct {
 	dbSession *sql.DB
 	migrations *sqlMigrate
 	log zerolog.Logger
+	topic *broker.Topic
 
 	modName string
 	mods *modules.Modules
@@ -28,15 +30,20 @@ var Plugin MysqlModule
 
 // Module API:
 func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
+
+	var e error
+
 	self.mods = mods
 	self.modName = reflect.TypeOf(self).Elem().Name()
 	self.log = self.mods.Logger.With().Str("MODULE", self.modName).Logger()
+	self.topic,e = self.mods.Broker.CreateTopic("mysql"); if e != nil { return nil,e }
 
 	return self,self.openConnection()
 }
 
 func (self *MysqlModule) Bootstrap() error {
 	var e error
+	var brokerInbox chan *broker.Message
 	var mysqlChecker *time.Ticker = time.NewTicker(time.Second)
 
 	self.log.Debug().Msg("Check and Up mysql migrations ...")
@@ -48,10 +55,14 @@ func (self *MysqlModule) Bootstrap() error {
 		self.log.Debug().Msg("MySQL migrations are OK!")
 	} else { return err }
 
+	brokerInbox = self.topic.Subscribe().GetInbox()
+
 	self.log.Debug().Msg("Mysql has been bootstrapped!")
 LOOP:
 	for {
 		select {
+		case <-brokerInbox:
+			self.log.Debug().Msg("brokerInbox has been triggered!")
 		case <-self.mods.DonePipe:
 			break LOOP
 		case <-mysqlChecker.C:

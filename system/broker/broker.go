@@ -17,7 +17,7 @@ type Broker struct {
 }
 
 type Message func(interface{}) error
-type Subscription struct { ch chan<- *Message }
+type Subscription struct { ch chan *Message }
 type Topic struct { sub *Subscription }
 
 
@@ -38,7 +38,7 @@ func (m *Topic) Subscribe() *Subscription {
 func (m *Topic) create(buf int) (*Topic, error) {
 
 	m.sub = new(Subscription)
-	m.sub.ch = make(chan<- *Message)
+	m.sub.ch = make(chan *Message)
 
 	return m,nil
 }
@@ -46,24 +46,25 @@ func (m *Topic) create(buf int) (*Topic, error) {
 
 // Subscription external methods:
 func (m *Subscription) Publish(mess *Message) error {
-	// XXX:	if _, ok := <-m.ch; !ok { return ErrTopicIsClosed } // read0only channel
+	if _, ok := <-m.ch; !ok { return ErrTopicIsClosed }
 
 	m.ch<- mess; return nil
 }
+func (m *Subscription) GetInbox() chan *Message { return m.ch }
 
 
 // Broker external methods:
-func (m *Broker) CreateTopic(name string) error {
+func (m *Broker) CreateTopic(name string) (*Topic,error) {
 	m.RLock(); _, ok := m.topics[name]; m.RUnlock()
-	if ok { return ErrTopicIsDefined }
+	if ok { return nil,ErrTopicIsDefined }
 
 	m.Lock();
 	defer m.Unlock()
 
 	var e error
-	if m.topics[name], e = new(Topic).create(m.cnf.Base.Broker.Buffer); e != nil { return e }
+	if m.topics[name], e = new(Topic).create(m.cnf.Base.Broker.Buffer); e != nil { return nil,e }
 
-	return nil
+	return m.topics[name],nil
 }
 func (m *Broker) DeleteTopic(name string) error {
 	m.RLock(); _, ok := m.topics[name]; m.RUnlock()
