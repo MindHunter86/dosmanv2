@@ -25,20 +25,13 @@ var (
 type MySQLDriver struct {
 	log zerolog.Logger
 	session *sql.DB
-	credentials *MySQLCredentials
+	credentials *DBCredentials
 	migration *migrate.Migrate
-}
-
-type MySQLCredentials struct {
-	Host, Port, Username, Password, Database string
-	MgrDirectory string
-	MgrVersion uint
-	Debug bool
 }
 
 
 // DBDriver API:
-func (m *MySQLDriver) Construct(creds *MySQLCredentials) (DBDriver, error) {
+func (m *MySQLDriver) Construct(creds *DBCredentials) (DBDriver, error) {
 	if creds == nil { return nil,errDBCredsIsNil }
 
 	// log initialization for active debugging:
