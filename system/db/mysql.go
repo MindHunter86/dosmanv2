@@ -1,4 +1,4 @@
-package main
+package db
 
 import (
 	"database/sql"
@@ -15,7 +15,7 @@ import (
 
 
 // Module structs:
-type MysqlModule struct {
+type MySQLModule struct {
 	dbSession *sql.DB
 	migrations *sqlMigrate
 	log zerolog.Logger
@@ -25,8 +25,9 @@ type MysqlModule struct {
 	mods *modules.Modules
 }
 
-// export as symbol for app server:
-var Plugin MysqlModule
+
+// DBDriver API:
+// func (m *MySQLModule) Construct(config)
 
 // Module API:
 func (self *MysqlModule) Configure(mods *modules.Modules, args ...interface{}) (modules.Module, error) {
