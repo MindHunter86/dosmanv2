@@ -3,7 +3,6 @@ package modules
 import (
 	"sync"
 
-	"mh00appserver/system/broker"
 	config "mh00appserver/system/config"
 
 	"github.com/rs/zerolog"
@@ -19,7 +18,6 @@ const (
 type Modules struct {
 	// BaseModule address "storage":
 	Hub map[string]*BaseModule
-	Broker *broker.Broker
 
 	// Modules global resources:
 	Logger *zerolog.Logger

@@ -8,7 +8,6 @@ import (
 	"plugin"
 
 	"mh00appserver/modules"
-	"mh00appserver/system/broker"
 	config "mh00appserver/system/config"
 
 	"github.com/rs/zerolog"
@@ -40,8 +39,6 @@ func (m *System) Configure() (*System, error) {
 	// define new modulelist:
 	m.mods = new(modules.Modules)
 	m.mods.Hub = make(map[string]*modules.BaseModule)
-	if m.mods.Broker, e = new(broker.Broker).Configure(m.cfg); e != nil { return nil,e }
-	m.log.Debug().Msg("Broker subsystem has been successfully configured!")
 
 	m.mods.Logger = m.log
 	m.mods.DonePipe = make(chan struct{})
