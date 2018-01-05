@@ -1,7 +1,7 @@
 package main
 
 import "os"
-import "mh00appserver/system"
+import "dosmanv2/system"
 import "github.com/rs/zerolog"
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"mh00appserver/modules"
+	"dosmanv2/modules"
 
 	"github.com/rs/zerolog"
 	_ "github.com/go-sql-driver/mysql"

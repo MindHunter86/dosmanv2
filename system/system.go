@@ -7,8 +7,8 @@ import (
 	"syscall"
 	"plugin"
 
-	"mh00appserver/modules"
-	"mh00appserver/system/config"
+	"dosmanv2/modules"
+	"dosmanv2/system/config"
 
 	"github.com/rs/zerolog"
 )

@@ -3,7 +3,7 @@ package modules
 import (
 	"sync"
 
-	"mh00appserver/system/config"
+	"dosmanv2/system/config"
 
 	"github.com/rs/zerolog"
 )
