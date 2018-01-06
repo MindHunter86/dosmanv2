@@ -1,7 +1,5 @@
 package main
 
-import "log"
-import "time"
 import "sync"
 
 
@@ -28,19 +26,7 @@ func (m *dispatcher) bootstrap() {
 		go new(worker).construct(m.pool, m.workerQuite).spawn(&m.wg)
 	}
 
-	go m.dispatch()
-
-	time.Sleep(5*time.Second)
-
-	var proxyTestRecord *proxy = &proxy{
-		addr: "127.0.0.1:3128",
-		class: uint8(1),
-		anon: uint8(1),
-		created: time.Now()}
-
-	m.proxyQueue<- *proxyTestRecord
-
-	m.wg.Wait()
+	m.dispatch()
 }
 
 func (m *dispatcher) dispatch() {
@@ -57,6 +43,5 @@ LOOP:
 	}
 
 	close(m.workerQuite)
-	log.Println("quitPipe has been closed! sync.Wait...")
-//	m.wg.Wait()
+	m.wg.Wait()
 }
