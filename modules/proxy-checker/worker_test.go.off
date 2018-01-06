@@ -1,0 +1,78 @@
+package main
+
+import "log"
+import "time"
+
+
+var (
+	maxWorker = 1
+	maxQueue = 128
+)
+
+type proxy struct {
+  host string
+  type, anon uint8
+  created *time.Time
+}
+
+type job struct { proxy proxy }
+var jobQueue chan job
+
+type worker struct {
+	workerPool chan chan job
+	jobChannel chan job
+	quit chan struct {}
+}
+
+func (m *worker) construct(workerPool chan chan job) worker {
+	m.workerPool = workerPool
+	m.jobChannel = make(chan job),
+	m.quit = make(chan struct{})
+	return m
+}
+
+func (m *worker) start() {
+	go func() {
+		for {
+			m.workerPool <- m.jobChannel
+
+			select {
+			case job := <-w.jobChannel:
+				log.Println("work request has been triggered!")
+			case m.quit: return
+			}
+		}
+	}()
+}
+
+func (m *worker) stop() {
+	go func() { close(m.quit) }
+}
+
+
+type dispatcher struct { workerPool chan chan job }
+
+func (m *dispatcher) construct() *dispatcher {
+	m.workerPool = make(chan chan job, maxWorker)
+	return m
+}
+
+func (m *dispatcher) run() {
+	for i := 0; i < maxWorker; i++ {
+		new(worker).construct(m.workerPool).start()
+	}
+
+	// TODO
+}
+
+func (m *dispatcher) dispath() {
+	for {
+		select{
+		case job := <- jobQueue:
+			go func() {
+				jobChannel := <-m.workerPool
+				jobChannel <- job
+			}(job)
+		}
+	}
+}
