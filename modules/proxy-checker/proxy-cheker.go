@@ -10,7 +10,10 @@ import "github.com/rs/zerolog"
 
 // XXX TEMPORARY CODE ZONE:
 var maxWorkers int = 1
-var proxyCheckerOverdue uint = uint(30)
+var workerJobTimeout time.Duration = 10 * time.Second
+var workerJobTestPage string = "http://188.165.198.98:8089/"
+var workerJobTestResponse []byte = []byte("Hello world\n")
+var proxyCheckerOverdue uint = uint(300)
 var proxyCheckerTimer time.Duration = 30 * time.Second
 // 2DELETE END
 
@@ -65,7 +68,7 @@ func (m *ProxyChecker) Construct(mods *modules.Modules, args ...interface{}) (mo
 		kernelQuit: m.donePipe,
 		proxyQueue: m.prxQueue,
 		pool: make(chan chan proxy, maxWorkers),
-		workerQuite: make(chan struct{}, 1)}
+		workerQuit: make(chan struct{}, 1)}
 
 	// initilize proxy api:
 	m.proxyapi = &proxyapi{
@@ -83,7 +86,7 @@ func (m *ProxyChecker) Bootstrap() error {
 	go func(wg sync.WaitGroup) { wg.Add(1); m.proxyapi.bootstrap(); wg.Done() }(wg)
 
 	m.log.Debug().Msg("Trying to bootstrap dispatcher...")
-	go func(wg sync.WaitGroup) { wg.Add(1); m.dispatcher.bootstrap(); wg.Done() }(wg)
+	go func(wg sync.WaitGroup) { wg.Add(1); m.dispatcher.bootstrap(m.proxyapi); wg.Done() }(wg)
 
 	<-m.donePipe
 

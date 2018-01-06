@@ -1,6 +1,13 @@
 package main
 
-import "sync"
+import "log"
+import "bytes"
+import "net/http"
+import "net/url"
+import "io/ioutil"
+
+// TODO:
+// - add User-Agent randomizer;
 
 
 type worker struct {
@@ -16,73 +23,34 @@ func (m *worker) construct(pool chan chan proxy, quit chan struct{}) *worker {
 	return m
 }
 
-func (m *worker) spawn(wg *sync.WaitGroup) {
-	wg.Add(1)
+func (m *worker) spawn(argProxyApi *proxyapi) {
+	var e error
 
 LOOP:
 	for {
 		m.pool <- m.inbox
 
 		select {
-		case _ = <-m.inbox:
-			// TODO: CHECK PROXY
+		case prx := <-m.inbox:
+			if e = m.doJob(argProxyApi, &prx); e != nil { log.Println(e) } // TODO : Report for error
 		case <-m.quit:
 			break LOOP
 		}
 	}
-
-	wg.Done()
 }
 
-//func (m *worker) proxyCheck(prx proxy) {
-//	//
-//}
-//
-//
-//
-//
-//
-//
-//
-////
-//var (
-//	errProxyIsEmpty = errors.New("Given proxy host is empty!")
-//	errProxyAbnormalResult = errors.New("Cound not fetch test url!")
-//)
-//
-//type ProxyDrvier struct {
-//	log *zerolog.Logger
-//}
-//
-//
-//func (m *ProxyDrvier) Construct() (*ProxyDrvier, error) {
-//	return m,m.proxyCheck("149.202.180.55:31288")
-//}
-//
-//
-//func (m *ProxyDrvier) proxyCheck(host string) error {
-//	if len(host) == 0 { return errProxyIsEmpty }
-//
-//	var timeout = time.Duration(5 * time.Second)
-//
-//	var httpClient *http.Client = &http.Client{
-//		Transport: &http.Transport{
-//			Proxy: http.ProxyURL(&url.URL{
-//				Host: host,
-//			}),
-//		},
-//		Timeout: timeout}
-//
-//	resp, e := httpClient.Get("http://188.165.198.98:8089/"); if e != nil { return e }
-//	defer resp.Body.Close()
-//
-//	body, _ := ioutil.ReadAll(resp.Body)
-//	if ! bytes.Equal(body, []byte("Hello world\n")) {
-//		log.Println(string(body))
-//		log.Println(body)
-//		return errProxyAbnormalResult
-//	}
-//
-//	// TODO: Write proxy in mysql
-//	return nil
-//}
+func (m *worker) doJob(api *proxyapi, prx *proxy) error {
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL( &url.URL{ Host: prx.addr } )},
+		Timeout: workerJobTimeout}
+
+	rsp,e := httpClient.Get(workerJobTestPage); if e != nil { return e }
+	defer rsp.Body.Close()
+
+	rspBody,e := ioutil.ReadAll(rsp.Body); if e != nil { return e }
+	log.Println(string(rspBody))
+	return api.writeCheckerReport(&proxyReport{
+		proxy: prx,
+		state: bytes.Equal(rspBody, workerJobTestResponse)})
+}
