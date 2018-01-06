@@ -19,6 +19,9 @@ type Modules struct {
 	// BaseModule address "storage":
 	Hub map[string]*BaseModule
 
+	// Debugger flag:
+	Debug bool
+
 	// Modules global resources:
 	Logger *zerolog.Logger
 	Config *config.SysConfig
@@ -29,8 +32,9 @@ type Modules struct {
 }
 
 type Module interface {
-	Configure(*Modules, ...interface{}) (Module, error)
+	Construct(*Modules, ...interface{}) (Module, error)
 	Bootstrap() error
+	Destruct() error
 }
 
 type BaseModule struct {

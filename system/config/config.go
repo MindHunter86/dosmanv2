@@ -32,11 +32,7 @@ type SysConfig struct {
 		Timeout int
 	}
 	Mysql struct {
-		Host, Username, Password, Database string
-		Migrations struct {
-			Dir string
-			Version uint
-		}
+		Host, Username, Password, Database, Migrations_dir string
 	}
 }
 

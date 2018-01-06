@@ -38,11 +38,12 @@ func (m *System) Configure() (*System, error) {
 
 	// define new modulelist:
 	m.mods = new(modules.Modules)
-	m.mods.Hub = make(map[string]*modules.BaseModule)
+	if m.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
 
+	m.mods.Hub = make(map[string]*modules.BaseModule)
+	m.mods.Debug = m.mods.Config.Base.Debug
 	m.mods.Logger = m.log
 	m.mods.DonePipe = make(chan struct{})
-	if m.mods.Config, e = new(config.SysConfig).Parse(); e != nil { return nil,e }
 	m.log.Debug().Msg("Config subsystem has been successfully configured!")
 
 	// plugins loader:
@@ -114,8 +115,8 @@ func (m *System) preloadPlugin(plgName string) error {
 		return e
 	}
 
-	modPointer, e := plgPointer.(modules.Module).Configure(m.mods, nil); if e != nil {
-		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not execute Configure method!")
+	modPointer, e := plgPointer.(modules.Module).Construct(m.mods, nil); if e != nil {
+		m.log.Warn().Str("plugin", plgName).Err(e).Msg("Could not execute the Configure method!")
 		return e
 	}
 

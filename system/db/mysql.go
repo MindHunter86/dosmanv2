@@ -49,14 +49,17 @@ func (m *MySQLDriver) Construct(creds *DBCredentials) (DBDriver, error) {
 			creds.Host = "localhost"
 		case creds.Password == "":
 			creds.Password = "1234"
-		case creds.Port == "":
-			creds.Port = "3306"
 		case creds.Username == "":
 			creds.Username = "dosmanv2"
+		case creds.MgrDirectory == "":
+			creds.MgrDirectory = "migrations"
 	}
+	m.credentials = creds
 
 	m.debugEcho(nil, "Check MySQL migrations ...")
 	if mSession,err := sql.Open("mysql", m.configureConnection().FormatDSN()); err == nil {
+		defer mSession.Close()
+
 		if e := m.runMigrations(mSession); e != nil {
 			m.debugEcho(e, "MySQL migrations were failed!")
 			return nil,e
@@ -97,7 +100,7 @@ func (m *MySQLDriver) configureConnection() *mysql.Config {
 
 	return &mysql.Config{
 		Net: "tcp",
-		Addr: m.credentials.Host + ":" + m.credentials.Port,
+		Addr: m.credentials.Host,
 		User: m.credentials.Username,
 		Passwd: m.credentials.Password,
 		DBName: m.credentials.Database,
@@ -127,11 +130,11 @@ func (m *MySQLDriver) dropConnection() error { return m.session.Close() }
 func (m *MySQLDriver) runMigrations(mSession *sql.DB) error {
 	var e error
 
-	mDriver, _ := mysql_migrate.WithInstance(mSession, &mysql_migrate.Config{})
+	mDriver, e := mysql_migrate.WithInstance(mSession, &mysql_migrate.Config{}); if e != nil { return e }
 	if m.migration, e = migrate.NewWithDatabaseInstance("file://"+m.credentials.MgrDirectory, "mysql", mDriver); e != nil {
 		return e
 	}
 
-	if e = m.migration.Migrate(m.credentials.MgrVersion); e != nil && e != migrate.ErrNoChange { return e }
+	if e = m.migration.Up(); e != nil { return e }
 	return nil
 }
