@@ -135,6 +135,6 @@ func (m *MySQLDriver) runMigrations(mSession *sql.DB) error {
 		return e
 	}
 
-	if e = m.migration.Up(); e != nil { return e }
+	if e = m.migration.Up(); e != nil && e != migrate.ErrNoChange { return e }
 	return nil
 }

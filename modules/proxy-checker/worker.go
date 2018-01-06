@@ -2,6 +2,7 @@ package main
 
 
 import "log" // XXX: temporary!!
+import "sync"
 
 
 type worker struct {
@@ -17,9 +18,11 @@ func (m *worker) construct(pool chan chan proxy, quit chan struct{}) *worker {
 	return m
 }
 
-func (m *worker) spawn() {
+func (m *worker) spawn(wg *sync.WaitGroup) {
+	wg.Add(1)
 	log.Println("Worker ### has been spawned!")
 
+LOOP:
 	for {
 		m.pool <- m.inbox
 
@@ -32,8 +35,10 @@ func (m *worker) spawn() {
 			log.Println(i.created.String())
 			log.Println("== job end")
 		case <-m.quit:
-			log.Println("Worker ### has been killed!")
-			return
+			break LOOP
 		}
 	}
+
+	log.Println("Worker ### has been killed!")
+	wg.Done()
 }

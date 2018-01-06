@@ -147,9 +147,12 @@ func (m *System) moduleBootstrap(modName string, modPointer *modules.BaseModule,
 
 func (m *System) shutdown() {
 	// Set status STOP for running modules:
-	for modName, _ := range m.mods.Hub {
-		if m.mods.Hub[modName].GetModuleStatus() == modules.StatusRunning {
+	for modName, modPointer := range m.mods.Hub {
+		if m.mods.Hub[modName].GetModuleStatus() == modules.StatusReady {
 			m.mods.Hub[modName].SetModuleStatus(modules.StatusStopping)
+			if e := modPointer.Destruct(); e != nil {
+				m.log.Warn().Str("plugin", modName).Err(e).Msg("Could not correctly shutdown the plugin!")
+			}
 		}
 	}
 

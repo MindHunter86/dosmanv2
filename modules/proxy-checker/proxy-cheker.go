@@ -30,6 +30,9 @@ type ProxyChecker struct {
 	db db.DBDriver
 	log zerolog.Logger
 
+	prxQueue chan proxy
+	dispatcher *dispatcher
+
 	modName string
 	mods *modules.Modules
 	donePipe chan struct{}
@@ -38,7 +41,7 @@ type ProxyChecker struct {
 type proxy struct {
 	addr string
 	class, anon uint8
-	created *time.Time
+	created time.Time
 }
 
 
@@ -48,15 +51,23 @@ func (m *ProxyChecker) Construct(mods *modules.Modules, args ...interface{}) (mo
 	m.mods = mods
 	m.donePipe = mods.DonePipe
 	m.modName = reflect.TypeOf(m).Elem().Name()
-	m.log = m.mods.Logger.With().Str("modules", m.modName).Logger()
+	m.log = m.mods.Logger.With().Str("plugin", m.modName).Logger()
+
+	var e error
 
 	// initilize db connection:
-	if e := m.dbInitialize(); e != nil { return nil,e }
+	if e = m.dbInitialize(); e != nil { return nil,e }
+
+	// initilize dispathcer with new proxy queue chan:
+	m.prxQueue = make(chan proxy)
+	m.dispatcher = new(dispatcher).construct(m.donePipe, m.prxQueue)
 
 	return m,nil
 }
 
 func (m *ProxyChecker) Bootstrap() error {
+	m.log.Debug().Msg("Trying to bootstrap dispatcher...")
+	m.dispatcher.bootstrap()
 	return nil
 }
 
