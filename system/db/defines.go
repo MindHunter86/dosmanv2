@@ -1,8 +1,13 @@
 package db
 
+import "database/sql"
+
+
 type DBDriver interface {
 	Construct(creds *DBCredentials) (DBDriver, error)
 	Destruct() error
+
+	GetRawDBSession() *sql.DB
 }
 
 type DBCredentials struct {

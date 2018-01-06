@@ -6,6 +6,8 @@ import "github.com/rs/zerolog"
 
 
 type dispatcher struct {
+	wg sync.WaitGroup
+
 	db db.DBDriver
 	log zerolog.Logger
 
@@ -13,8 +15,6 @@ type dispatcher struct {
 	proxyQueue chan proxy
 	kernelQuit chan struct{}
 	workerQuite chan struct{}
-
-	wg sync.WaitGroup
 }
 
 

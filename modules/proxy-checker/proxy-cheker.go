@@ -1,6 +1,5 @@
 package main
 
-import "time"
 import "reflect"
 import "dosmanv2/modules"
 import "dosmanv2/system/db"
@@ -8,7 +7,8 @@ import "github.com/rs/zerolog"
 
 
 // XXX TEMPORARY CODE ZONE:
-var maxWorkers = 1
+var maxWorkers int = 1
+var proxyCheckerOverdue uint = uint(30)
 // 2DELETE END
 
 
@@ -36,12 +36,6 @@ type ProxyChecker struct {
 	modName string
 	mods *modules.Modules
 	donePipe chan struct{}
-}
-
-type proxy struct {
-	addr string
-	class, anon uint8
-	created time.Time
 }
 
 

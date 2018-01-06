@@ -72,6 +72,7 @@ func (m *MySQLDriver) Construct(creds *DBCredentials) (DBDriver, error) {
 }
 
 func (m *MySQLDriver) Destruct() error { return m.dropConnection() }
+func (m *MySQLDriver) GetRawDBSession() *sql.DB { return m.session }
 
 
 // MySQLDriver internal API:
