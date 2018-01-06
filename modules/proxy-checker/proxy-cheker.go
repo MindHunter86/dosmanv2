@@ -1,5 +1,7 @@
 package main
 
+import "sync"
+import "time"
 import "reflect"
 import "dosmanv2/modules"
 import "dosmanv2/system/db"
@@ -9,6 +11,7 @@ import "github.com/rs/zerolog"
 // XXX TEMPORARY CODE ZONE:
 var maxWorkers int = 1
 var proxyCheckerOverdue uint = uint(30)
+var proxyCheckerTimer time.Duration = 30 * time.Second
 // 2DELETE END
 
 
@@ -32,6 +35,8 @@ type ProxyChecker struct {
 
 	prxQueue chan proxy
 	dispatcher *dispatcher
+
+	proxyapi *proxyapi
 
 	modName string
 	mods *modules.Modules
@@ -61,12 +66,29 @@ func (m *ProxyChecker) Construct(mods *modules.Modules, args ...interface{}) (mo
 		proxyQueue: m.prxQueue,
 		pool: make(chan chan proxy, maxWorkers),
 		workerQuite: make(chan struct{}, 1)}
+
+	// initilize proxy api:
+	m.proxyapi = &proxyapi{
+		db: m.db.GetRawDBSession(),
+		log: m.log,
+		kernelQuit: m.donePipe,
+		proxyCheckQueue: m.prxQueue}
 	return m,nil
 }
 
 func (m *ProxyChecker) Bootstrap() error {
+	var wg sync.WaitGroup
+
+	m.log.Debug().Msg("Trying to bootstrap proxyapi...")
+	go func(wg sync.WaitGroup) { wg.Add(1); m.proxyapi.bootstrap(); wg.Done() }(wg)
+
 	m.log.Debug().Msg("Trying to bootstrap dispatcher...")
-	m.dispatcher.bootstrap()
+	go func(wg sync.WaitGroup) { wg.Add(1); m.dispatcher.bootstrap(); wg.Done() }(wg)
+
+	<-m.donePipe
+
+	wg.Wait()
+	m.log.Debug().Msg("Bootstrap func has been successfully completed!")
 	return nil
 }
 
