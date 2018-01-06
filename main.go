@@ -4,6 +4,11 @@ import "os"
 import "dosmanv2/system"
 import "github.com/rs/zerolog"
 
+// GLOBAL TODO:
+// - grep todo in *go files;
+// - refactor table schema;
+
+
 func main() {
 	var log zerolog.Logger
 
