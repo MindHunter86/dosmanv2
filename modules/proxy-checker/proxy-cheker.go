@@ -60,8 +60,13 @@ func (m *ProxyChecker) Construct(mods *modules.Modules, args ...interface{}) (mo
 
 	// initilize dispathcer with new proxy queue chan:
 	m.prxQueue = make(chan proxy)
-	m.dispatcher = new(dispatcher).construct(m.donePipe, m.prxQueue)
-
+	m.dispatcher = &dispatcher{
+		db: m.db,
+		log: m.log,
+		kernelQuit: m.donePipe,
+		proxyQueue: m.prxQueue,
+		pool: make(chan chan proxy, maxWorkers),
+		workerQuite: make(chan struct{}, 1)}
 	return m,nil
 }
 

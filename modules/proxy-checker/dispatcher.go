@@ -1,9 +1,14 @@
 package main
 
 import "sync"
+import "dosmanv2/system/db"
+import "github.com/rs/zerolog"
 
 
 type dispatcher struct {
+	db db.DBDriver
+	log zerolog.Logger
+
 	pool chan chan proxy
 	proxyQueue chan proxy
 	kernelQuit chan struct{}
@@ -12,14 +17,6 @@ type dispatcher struct {
 	wg sync.WaitGroup
 }
 
-func (m *dispatcher) construct(sigpipe chan struct{}, prxqueue chan proxy) *dispatcher {
-	m.kernelQuit = sigpipe
-	m.proxyQueue = prxqueue
-
-	m.workerQuite = make(chan struct{}, 1)
-	m.pool = make(chan chan proxy, maxWorkers)
-	return m
-}
 
 func (m *dispatcher) bootstrap() {
 	for i := 0; i < maxWorkers; i++ {
