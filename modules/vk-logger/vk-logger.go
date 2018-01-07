@@ -4,6 +4,7 @@ import "reflect"
 import "github.com/rs/zerolog"
 import "dosmanv2/modules"
 import (
+	"bytes"
 	"errors"
 	"net/url"
 	"net/http"
@@ -12,9 +13,6 @@ import (
 	"net/http/cookiejar"
 	"io"
 )
-
-// Global variables for BitBucket export:
-// n\a
 
 
 // Plugin variables:
@@ -36,11 +34,11 @@ func (m *VKLogger) Construct(mods *modules.Modules, args ...interface{}) (module
 	m.modName = reflect.TypeOf(m).Elem().Name()
 	m.log = m.mods.Logger.With().Str("plugin", m.modName).Logger()
 
-	m.log.Debug().Msg("String Construct method for vk-logger plugin...")
+	m.vkHttpClient = new(http.Client)
 
 	if e := m.vkAuthenticate("piratickgoo@gmail.com", "Ovij0jmNCSDWcCpl"); e != nil { return nil,e }
+	if _,e := m.vkGetWallPostWiget("-35005_29999"); e != nil { return nil,e }
 
-	m.log.Debug().Msg("Construct method stop for vk-logger plugin...")
 	return m,nil
 }
 func (m *VKLogger) Bootstrap() error { return nil }
@@ -48,20 +46,33 @@ func (m *VKLogger) Destruct() error { return nil }
 
 
 // VKLogger plugin internal API:
-func (m *VKLogger) vkGetWallPostWiget(wallPostId string) error {
+func (m *VKLogger) vkGetWallPostWiget(wallPostId string) (string,error) {
+	var postBuf = new(bytes.Buffer)
+	postBuf.WriteString("act=a_get_post_hash&al=1&post="+wallPostId)
 
-	
+	rsp,e := m.vkHttpClient.Post("https://vk.com/dev.php", "application/x-www-form-urlencoded", postBuf); if e != nil { return "",e }
+	if rsp.StatusCode != 200 { m.log.Warn().Int("response_code", rsp.StatusCode).Msg("Method vkGetWallPostWiget found unstable response from VK! (url: https://vk.com/dev.php)") }
+	defer rsp.Body.Close()
 
-	return nil
+	rspBody,e := ioutil.ReadAll(rsp.Body); if e != nil { return "",nil }
+	m.log.Info().Str("response_body", string(rspBody)).Msg("Method vkGetWallPostWiget get new response!")
+
+	var rspSplit = bytes.Split(rspBody, []byte("<!>"))
+	if ! bytes.Equal(rspSplit[4], []byte("0")) {
+		m.log.Warn().Msg("Method vkGetWallPostWiget has unusual response from VK (https://vk.com/dev.php). Check it, please!")
+		m.log.Info().Msg("HINT: Maybe you need reset your VK session?")
+	}
+
+	m.log.Info().Bytes("VALUE", rspSplit[5]).Msg("Found new post hash!")
+	return string(rspSplit[5]),nil
 }
+
 func (m *VKLogger) vkAuthenticate(email, password string) error {
 	var e error
-	var httpClient *http.Client = new(http.Client)
-
-	if httpClient.Jar,e = cookiejar.New(nil); e != nil { return e }
+	if m.vkHttpClient.Jar,e = cookiejar.New(nil); e != nil { return e }
 
 	m.log.Debug().Msg("Tying to get VK main page...")
-	rsp,e := httpClient.Get("https://vk.com/"); if e != nil { return e }
+	rsp,e := m.vkHttpClient.Get("https://vk.com/"); if e != nil { return e }
 	defer rsp.Body.Close()
 
 	m.log.Debug().Msg("Trying to get hidden values from VK main page...")
@@ -72,7 +83,7 @@ func (m *VKLogger) vkAuthenticate(email, password string) error {
 	authData.Add("pass", password)
 
 	m.log.Debug().Msg("Trying to send POST request for vkAuthentication...")
-	rsp,e = httpClient.PostForm(authTarget, authData); if e != nil { return e }
+	rsp,e = m.vkHttpClient.PostForm(authTarget, authData); if e != nil { return e }
 
 	m.log.Debug().Msg("POST request has been sended! Trying to read response body...")
 	rspBody,e := ioutil.ReadAll(rsp.Body); if e != nil { return e }
@@ -80,12 +91,13 @@ func (m *VKLogger) vkAuthenticate(email, password string) error {
 
 	m.log.Debug().Msg("Final parsing...")
 	authURL,e := url.Parse("https://vk.com/"); if e != nil { return e }
-	for _,v := range httpClient.Jar.Cookies(authURL) {
+	for _,v := range m.vkHttpClient.Jar.Cookies(authURL) {
 		m.log.Info().Str("VALUE", v.String()).Msg("Found new cookie!")
 	}
 
 	return nil
 }
+
 func (m *VKLogger) getFormHiddenValues(rspBody io.ReadCloser) (string, url.Values) {
 	m.log.Debug().Msg("Tokenizer initialization...")
 	tokenizer := html.NewTokenizer(rspBody)
@@ -129,20 +141,3 @@ LOOP:
 	m.log.Debug().Msg("Magic stopped!")
 	return formTarget, formHiddenData
 }
-
-/*
-func (m *worker) doJob(api *proxyapi, prx *proxy) error {
-	httpClient := &http.Client{
-		Transport: &http.Transport{
-			Proxy: http.ProxyURL( &url.URL{ Host: prx.addr } )},
-		Timeout: workerJobTimeout}
-
-	rsp,e := httpClient.Get(workerJobTestPage); if e != nil { return e }
-	defer rsp.Body.Close()
-
-	rspBody,e := ioutil.ReadAll(rsp.Body); if e != nil { return e }
-	log.Println(string(rspBody))
-	return api.writeCheckerReport(&proxyReport{
-		proxy: prx,
-		state: bytes.Equal(rspBody, workerJobTestResponse)})
-}*/
