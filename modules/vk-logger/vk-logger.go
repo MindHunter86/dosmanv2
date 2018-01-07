@@ -1,8 +1,5 @@
 package main
 
-import "reflect"
-import "github.com/rs/zerolog"
-import "dosmanv2/modules"
 import (
 	"bytes"
 	"errors"
@@ -14,12 +11,16 @@ import (
 	"io"
 )
 
+import "reflect"
+import "github.com/rs/zerolog"
+import "dosmanv2/modules"
+
 
 // Plugin variables:
 var Plugin VKLogger
 
 type VKLogger struct {
-  log zerolog.Logger
+	log zerolog.Logger
 
 	vkHttpClient *http.Client
 
