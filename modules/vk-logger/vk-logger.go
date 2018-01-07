@@ -1,19 +1,24 @@
 package main
 
 import (
+	"time"
 	"bytes"
 	"errors"
+	"reflect"
+
+	"io"
+	"io/ioutil"
+
 	"net/url"
 	"net/http"
-	"io/ioutil"
-	"golang.org/x/net/html"
 	"net/http/cookiejar"
-	"io"
-)
 
-import "reflect"
-import "github.com/rs/zerolog"
-import "dosmanv2/modules"
+	"dosmanv2/modules"
+	"dosmanv2/system/config"
+
+	"golang.org/x/net/html"
+	"github.com/rs/zerolog"
+)
 
 
 // Plugin variables:
@@ -23,6 +28,7 @@ type VKLogger struct {
 	log zerolog.Logger
 
 	vkHttpClient *http.Client
+	vkStorage *vkDB
 
 	modName string
 	mods *modules.Modules
@@ -35,18 +41,41 @@ func (m *VKLogger) Construct(mods *modules.Modules, args ...interface{}) (module
 	m.modName = reflect.TypeOf(m).Elem().Name()
 	m.log = m.mods.Logger.With().Str("plugin", m.modName).Logger()
 
+	var e error
+	if m.vkStorage,e = new(vkDB).construct(&m.log, m.mods.Config); e != nil { return nil,e }
+
 	m.vkHttpClient = new(http.Client)
 
-	if e := m.vkAuthenticate("piratickgoo@gmail.com", "Ovij0jmNCSDWcCpl"); e != nil { return nil,e }
-	if _,e := m.vkGetWallPostWiget("-35005_29999"); e != nil { return nil,e }
+	if e = m.checkSavedSession(); e != nil {
+		m.log.Warn().Err(e).Msg("Could not get save cookies from BoltDB db! Trying to create new cookieJar...")
+		if err := m.vkAuthenticate(m.mods.Config); e != nil { return nil,err }
+	}
 
+//	if e = m.vkAuthenticate("piratickgoo@gmail.com", "Ovij0jmNCSDWcCpl"); e != nil { return nil,e } // call this method only for debugging
+	if _,e = m.vkGetWallPostWiget("-35005_29999"); e != nil { return nil,e } // it's too
 	return m,nil
 }
 func (m *VKLogger) Bootstrap() error { return nil }
-func (m *VKLogger) Destruct() error { return nil }
+func (m *VKLogger) Destruct() error {
+	m.log.Debug().Msg("VKLogger destruct method has been called!") // XXX: tmp debug
+	return m.vkStorage.destruct()
+}
 
 
 // VKLogger plugin internal API:
+func (m *VKLogger) checkSavedSession() error {
+	vkURL,e := url.Parse("https://vk.com/"); if e != nil { return e }
+	if m.vkHttpClient.Jar,e = cookiejar.New(nil); e != nil { return e }
+
+	cookies,e := m.vkStorage.getCookies(); if e != nil { return e }
+	m.vkHttpClient.Jar.SetCookies(vkURL, cookies)
+
+	if m.mods.Debug {
+		for _,v := range cookies { m.log.Debug().Str("loaded_cookie", v.String()).Msg("Found saved session cookie in BoltDB!") }}
+
+	m.log.Info().Msg("CheckSavedSession - saved cookies have been successfully loaded and installed!")
+	return nil
+}
 func (m *VKLogger) vkGetWallPostWiget(wallPostId string) (string,error) {
 	var postBuf = new(bytes.Buffer)
 	postBuf.WriteString("act=a_get_post_hash&al=1&post="+wallPostId)
@@ -64,11 +93,12 @@ func (m *VKLogger) vkGetWallPostWiget(wallPostId string) (string,error) {
 		m.log.Info().Msg("HINT: Maybe you need reset your VK session?")
 	}
 
-	m.log.Info().Bytes("VALUE", rspSplit[5]).Msg("Found new post hash!")
+	if m.mods.Debug {
+		m.log.Info().Bytes("VALUE", rspSplit[5]).Msg("Found new post hash!")}
 	return string(rspSplit[5]),nil
 }
 
-func (m *VKLogger) vkAuthenticate(email, password string) error {
+func (m *VKLogger) vkAuthenticate(config *config.SysConfig) error {
 	var e error
 	if m.vkHttpClient.Jar,e = cookiejar.New(nil); e != nil { return e }
 
@@ -80,22 +110,25 @@ func (m *VKLogger) vkAuthenticate(email, password string) error {
 	authTarget, authData := m.getFormHiddenValues(rsp.Body)
 	if len(authTarget) == 0 { return errors.New("Authentication target is empty! Form parsing has been failed!") }
 
-	authData.Add("email", email)
-	authData.Add("pass", password)
+	authData.Add("email", config.Vklogger.Login)
+	authData.Add("pass", config.Vklogger.Password)
 
 	m.log.Debug().Msg("Trying to send POST request for vkAuthentication...")
 	rsp,e = m.vkHttpClient.PostForm(authTarget, authData); if e != nil { return e }
 
 	m.log.Debug().Msg("POST request has been sended! Trying to read response body...")
 	rspBody,e := ioutil.ReadAll(rsp.Body); if e != nil { return e }
-	m.log.Info().Msg(string(rspBody))
+	if m.mods.Debug { m.log.Info().Msg(string(rspBody)) }
 
-	m.log.Debug().Msg("Final parsing...")
 	authURL,e := url.Parse("https://vk.com/"); if e != nil { return e }
-	for _,v := range m.vkHttpClient.Jar.Cookies(authURL) {
-		m.log.Info().Str("VALUE", v.String()).Msg("Found new cookie!")
+	if e = m.vkStorage.updateCookies(m.vkHttpClient.Jar.Cookies(authURL)); e != nil {
+		m.log.Error().Err(e).Msg("Could not save given session cookie for logging!")
 	}
 
+	if m.mods.Debug {
+		for _,v := range m.vkHttpClient.Jar.Cookies(authURL) {
+			m.log.Info().Str("VALUE", v.String()).Msg("Found new cookie!")
+		}}
 	return nil
 }
 
@@ -105,8 +138,9 @@ func (m *VKLogger) getFormHiddenValues(rspBody io.ReadCloser) (string, url.Value
 
 	var formTarget string
 	var formHiddenData = url.Values{}
+	var parseTrack time.Time; if m.mods.Debug { parseTrack = time.Now()	}
 
-	m.log.Debug().Msg("Magic started")
+	m.log.Debug().Msg("GetFormHiddenData parsing has been started!")
 LOOP:
 	for {
 		switch tokenizer.Next() {
@@ -139,6 +173,9 @@ LOOP:
 		}
 	}
 
-	m.log.Debug().Msg("Magic stopped!")
+	if m.mods.Debug {
+		m.log.Debug().Dur("elapsed", time.Since(parseTrack)).Msg("GetFormHiddenData parser performance report.")}
+
+	m.log.Debug().Msg("GetFormHiddenData parsing has been stopped!")
 	return formTarget, formHiddenData
 }

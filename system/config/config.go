@@ -24,12 +24,11 @@ type SysConfig struct {
 			Loadlist []string
 		}
 	}
-	Http struct {
-		Listen string
-	}
-	Telegram struct {
-		Token string
-		Timeout int
+	Vklogger struct {
+		Login, Password string
+		Cookie_storage struct {
+			Path string
+		}
 	}
 	Mysql struct {
 		Host, Username, Password, Database, Migrations_dir string
