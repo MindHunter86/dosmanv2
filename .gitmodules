@@ -1,0 +1,3 @@
+[submodule "modules/vk-logger"]
+	path = modules/vk-logger
+	url = git@bitbucket.org:ittl/vk-logger-plugin.git
