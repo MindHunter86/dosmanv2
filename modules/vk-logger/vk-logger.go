@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sync"
+	"context"
 	"time"
 	"bytes"
 	"errors"
@@ -29,6 +31,7 @@ type VKLogger struct {
 
 	vkHttpClient *http.Client
 	vkStorage *vkDB
+	vkApi *vkApi
 
 	modName string
 	mods *modules.Modules
@@ -51,11 +54,33 @@ func (m *VKLogger) Construct(mods *modules.Modules, args ...interface{}) (module
 		if err := m.vkAuthenticate(m.mods.Config); e != nil { return nil,err }
 	}
 
-//	if e = m.vkAuthenticate("piratickgoo@gmail.com", "Ovij0jmNCSDWcCpl"); e != nil { return nil,e } // call this method only for debugging
-	if _,e = m.vkGetWallPostWiget("-35005_29999"); e != nil { return nil,e } // it's too
+	m.vkApi = new(vkApi).construct(&m.log, m.mods.Config, m)
+
+	if _,e = m.vkGetWallPostWiget("-35005_29999"); e != nil { return nil,e } // call this method only for debugging
 	return m,nil
 }
-func (m *VKLogger) Bootstrap() error { return nil }
+func (m *VKLogger) Bootstrap() error {
+	var wg sync.WaitGroup
+
+	go m.vkApi.bootstrap(&wg)
+	defer wg.Wait()
+
+	m.log.Debug().Msg("Starting event loop...")
+LOOP:
+	for {
+		select {
+		case <-m.mods.DonePipe:
+			m.log.Debug().Msg("Caught donePipe close!")
+			if e := m.vkApi.httpSrv.Shutdown(context.Background()); e != nil {
+				m.log.Error().Err(e).Msg("Could not initilize Shutdown method for http server!")
+			}
+			m.log.Debug().Msg("Caught donePipe close2!")
+			break LOOP
+		}
+	}
+
+	return nil
+}
 func (m *VKLogger) Destruct() error {
 	m.log.Debug().Msg("VKLogger destruct method has been called!") // XXX: tmp debug
 	return m.vkStorage.destruct()
@@ -89,8 +114,7 @@ func (m *VKLogger) vkGetWallPostWiget(wallPostId string) (string,error) {
 
 	var rspSplit = bytes.Split(rspBody, []byte("<!>"))
 	if ! bytes.Equal(rspSplit[4], []byte("0")) {
-		m.log.Warn().Msg("Method vkGetWallPostWiget has unusual response from VK (https://vk.com/dev.php). Check it, please!")
-		m.log.Info().Msg("HINT: Maybe you need reset your VK session?")
+		return "",errors.New("Method vkGetWallPostWiget has unusual response from VK (https://vk.com/dev.php). We can not say more, because we don't know the VK proto specification.")
 	}
 
 	if m.mods.Debug {

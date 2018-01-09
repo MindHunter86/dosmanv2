@@ -29,6 +29,9 @@ type SysConfig struct {
 		Cookie_storage struct {
 			Path string
 		}
+		Http_api struct {
+			Schema, Listen, Host string
+		}
 	}
 	Mysql struct {
 		Host, Username, Password, Database, Migrations_dir string
