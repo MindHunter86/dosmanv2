@@ -76,7 +76,6 @@ func (m *System) Bootstrap() error {
 		}
 	}
 
-	m.log.Info().Msg("All modules were bootstrapped! Starting main event handler...")
 	// start sys event loop:
 LOOP:
 	for {
