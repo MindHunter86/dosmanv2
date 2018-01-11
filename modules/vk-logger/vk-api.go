@@ -25,7 +25,8 @@ type vkApiResponse struct {
 	Results interface{} `json:"results,omitempty"`
 	Errors *vkApiResponseErr `json:"errors,omitempty"`
 	Status string `json:"status"`
-}o
+}
+
 type vkApiResponseErr struct {
 	Name string `json:"name"`
 	Desc string `json:"desc"`
