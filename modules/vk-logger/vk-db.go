@@ -36,8 +36,6 @@ func (m *vkDB) construct(log *zerolog.Logger, config *config.SysConfig) (*vkDB, 
 
 func (m *vkDB) destruct() error { return m.db.Close() }
 
-
-//
 func (m *vkDB) updateCookies(cookies []*http.Cookie) error {
 	tx,e := m.db.Begin(true); if e != nil { return e }
 	defer tx.Rollback()
@@ -66,8 +64,6 @@ func (m *vkDB) getCookies() ([]*http.Cookie, error) {
 	m.log.Debug().Int("keys_count", vkSessBucket.Stats().KeyN).Msg("BoltDB keys count from vk_session bucket.")
 
 	if e = vkSessBucket.ForEach(func(k,v []byte) error {
-		m.log.Debug().Bytes(string(k), v).Msg("GetCookies - readed new cookie from BoltDB")
-
 		httpCookies = append(httpCookies, &http.Cookie{
 			Name: string(k),
 			Value: string(v),

@@ -56,7 +56,6 @@ func (m *VKLogger) Construct(mods *modules.Modules, args ...interface{}) (module
 
 	m.vkApi = new(vkApi).construct(&m.log, m.mods.Config, m)
 
-	if _,e = m.vkGetWallPostWiget("-35005_29999"); e != nil { return nil,e } // call this method only for debugging
 	return m,nil
 }
 func (m *VKLogger) Bootstrap() error {
@@ -65,26 +64,19 @@ func (m *VKLogger) Bootstrap() error {
 	go m.vkApi.bootstrap(&wg)
 	defer wg.Wait()
 
-	m.log.Debug().Msg("Starting event loop...")
 LOOP:
 	for {
 		select {
 		case <-m.mods.DonePipe:
-			m.log.Debug().Msg("Caught donePipe close!")
 			if e := m.vkApi.httpSrv.Shutdown(context.Background()); e != nil {
-				m.log.Error().Err(e).Msg("Could not initilize Shutdown method for http server!")
-			}
-			m.log.Debug().Msg("Caught donePipe close2!")
+				m.log.Error().Err(e).Msg("Could not initilize Shutdown method for http server!")}
 			break LOOP
 		}
 	}
 
 	return nil
 }
-func (m *VKLogger) Destruct() error {
-	m.log.Debug().Msg("VKLogger destruct method has been called!") // XXX: tmp debug
-	return m.vkStorage.destruct()
-}
+func (m *VKLogger) Destruct() error { return m.vkStorage.destruct() }
 
 
 // VKLogger plugin internal API:

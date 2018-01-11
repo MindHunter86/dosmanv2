@@ -20,17 +20,19 @@ type vkApi struct {
 
 	httpSrv *http.Server
 }
+
 type vkApiResponse struct {
 	Results interface{} `json:"results,omitempty"`
 	Errors *vkApiResponseErr `json:"errors,omitempty"`
 	Status string `json:"status"`
-}
+}o
 type vkApiResponseErr struct {
 	Name string `json:"name"`
 	Desc string `json:"desc"`
 }
 
 
+// vkApi internal API:
 func (m *vkApi) construct(log *zerolog.Logger, cfg *config.SysConfig, vk *VKLogger) *vkApi {
 	m.log = log
 	m.vkLogger = vk
@@ -54,7 +56,6 @@ func (m *vkApi) construct(log *zerolog.Logger, cfg *config.SysConfig, vk *VKLogg
 	r.Headers("Content-Type", "application/json")
 
 	r.HandleFunc("/", m.httpRootHandler).Methods("GET")
-//	r.HandleFunc("/v1/", m.httpApiV1Handler).Methods("GET")
 	r.HandleFunc("/v1/wall/{id:-?[0-9]+_?[0-9]+}", m.httpWallHandler).Methods("GET")
 
 	m.httpSrv = &http.Server{
@@ -94,6 +95,7 @@ func (m *vkApi) httpWallHandler(w http.ResponseWriter, r *http.Request) {
 	}{wallId}, nil)
 }
 
+// vkapi HTTP responder:
 func (m *vkApi) respondJSON(w http.ResponseWriter, status int, statusCode string, payload interface{}, errors *vkApiResponseErr) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
