@@ -31,7 +31,13 @@ type SysConfig struct {
 	}
 	Randoshka struct {
 		Http struct {
-			Schema, Listen, Host string }
+			Schema, Listen, Host string
+			Session_Keypairs struct {
+				Current struct {
+					Authentication, Encryption string }
+				Previous struct {
+					Authentication, Encryption string }
+			}}
 	}
 	Mysql struct {
 		Host, Username, Password, Database, Migrations_dir string }
