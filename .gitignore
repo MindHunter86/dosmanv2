@@ -4,3 +4,6 @@ appserver
 mh00appserver
 dosmanv2
 *.db
+
+# remove module randoshka:
+modules/randoshka

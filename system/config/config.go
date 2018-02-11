@@ -17,25 +17,27 @@ type SysConfig struct {
 		Debug bool
 		Log_level string
 		Broker struct {
-			Buffer int
-		}
+			Buffer int }
 		Plugins struct {
 			Basedir string
-			Loadlist []string
-		}
+			Loadlist []string }
 	}
 	Vklogger struct {
 		Login, Password string
 		Cookie_storage struct {
-			Path string
-		}
+			Path string }
 		Http_api struct {
-			Schema, Listen, Host string
-		}
+			Schema, Listen, Host string }
 	}
+  Randoshka struct {
+    Http struct {
+      Schema, Listen, Host string }
+  }
 	Mysql struct {
-		Host, Username, Password, Database, Migrations_dir string
-	}
+		Host, Username, Password, Database, Migrations_dir string }
+	Telegram struct {
+		Token string
+		Timeout int }
 }
 
 func (self *SysConfig) Parse() (*SysConfig, error) {

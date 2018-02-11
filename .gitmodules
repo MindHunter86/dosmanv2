@@ -1,3 +1,7 @@
 [submodule "modules/vk-logger"]
 	path = modules/vk-logger
 	url = git@bitbucket.org:ittl/vk-logger-plugin.git
+[submodule "modules/randoshka"]
+	path = modules/randoshka
+	url = git@bitbucket.org:randoshka/w3v2.git
+	branch = master

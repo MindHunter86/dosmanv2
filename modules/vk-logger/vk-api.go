@@ -57,7 +57,7 @@ func (m *vkApi) construct(log *zerolog.Logger, cfg *config.SysConfig, vk *VKLogg
 	r.Headers("Content-Type", "application/json")
 
 	r.HandleFunc("/", m.httpRootHandler).Methods("GET")
-	r.HandleFunc("/v1/wall/{id:-?[0-9]+_?[0-9]+}", m.httpWallHandler).Methods("GET")
+	r.HandleFunc("/v1/wall/{id:-?[0-9]+_?[0-9]+}", m.httpWallHandler).Methods("GET", "OPTIONS")
 
 	m.httpSrv = &http.Server{
 		Handler: c.Then(r),
@@ -98,8 +98,10 @@ func (m *vkApi) httpWallHandler(w http.ResponseWriter, r *http.Request) {
 
 // vkapi HTTP responder:
 func (m *vkApi) respondJSON(w http.ResponseWriter, status int, statusCode string, payload interface{}, errors *vkApiResponseErr) {
-	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Headers", "access-control-allow-origin")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.WriteHeader(status)
 
 	json.NewEncoder(w).Encode(&vkApiResponse{
 		Results: payload,
