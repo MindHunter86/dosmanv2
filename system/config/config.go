@@ -29,10 +29,10 @@ type SysConfig struct {
 		Http_api struct {
 			Schema, Listen, Host string }
 	}
-  Randoshka struct {
-    Http struct {
-      Schema, Listen, Host string }
-  }
+	Randoshka struct {
+		Http struct {
+			Schema, Listen, Host string }
+	}
 	Mysql struct {
 		Host, Username, Password, Database, Migrations_dir string }
 	Telegram struct {
