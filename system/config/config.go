@@ -44,6 +44,20 @@ type SysConfig struct {
 	Telegram struct {
 		Token string
 		Timeout int }
+	Sysparser struct {
+		Http_Client struct {
+			Ua, Origin string
+			Timeout int }
+		Storage struct {
+			Bolt_Path string }
+		Sysmru struct {
+			Authentication struct {
+				Creds struct {
+					Username, Password, Next string}
+				Login_Url, Login_Post string
+				Test_String string }
+			Calendar_Url, Parse_From, Parse_To, Parse_Step string }
+	}
 }
 
 func (self *SysConfig) Parse() (*SysConfig, error) {

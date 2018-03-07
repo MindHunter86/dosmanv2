@@ -5,5 +5,7 @@ mh00appserver
 dosmanv2
 *.db
 
-# remove module randoshka:
+# remove git submodules:
 modules/randoshka
+modules/sys-parser
+modules/vk-logger
