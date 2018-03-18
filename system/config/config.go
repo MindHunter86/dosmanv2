@@ -50,13 +50,18 @@ type SysConfig struct {
 			Timeout int }
 		Storage struct {
 			Bolt_Path string }
+		Mysql struct {
+			Hostname,Username,Password,Database string }
 		Sysmru struct {
 			Authentication struct {
 				Creds struct {
 					Username, Password, Next string}
 				Login_Url, Login_Post string
 				Test_String string }
-			Calendar_Url, Parse_From, Parse_To, Parse_Step string }
+			Session_Robber struct {
+				Vulnerable_Url string }
+			Calendar_Url string
+			Parse_Until int }
 	}
 }
 
